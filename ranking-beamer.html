@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OPERATION SKYWEB — Live Ranking</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600;700&display=swap');
+
+:root {
+  --bg: #050810;
+  --panel: #0c1220;
+  --border: #1a3a5c;
+  --accent: #00d4ff;
+  --accent2: #ff4d00;
+  --accent3: #00ff9d;
+  --warn: #ffd700;
+  --danger: #ff2244;
+  --text: #b8cfe8;
+  --dim: #3a5070;
+  --gold: #ffd700;
+  --silver: #c0c0c0;
+  --bronze: #cd7f32;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:100%; height:100%; overflow:hidden; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Exo 2', sans-serif;
+  background-image:
+    radial-gradient(ellipse at 15% 50%, rgba(0,80,160,0.1) 0%, transparent 60%),
+    radial-gradient(ellipse at 85% 20%, rgba(0,180,100,0.06) 0%, transparent 50%);
+}
+
+body::before {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:9998;
+  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.05) 3px, rgba(0,0,0,0.05) 4px);
+}
+
+/* ── HEADER ── */
+#hdr {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 36px;
+  background: linear-gradient(90deg, #080f1e, #0c1828, #080f1e);
+  border-bottom: 2px solid var(--accent);
+  box-shadow: 0 2px 30px rgba(0,212,255,0.15);
+}
+#hdr-title {
+  font-family:'Orbitron',sans-serif; font-size:1.4rem; font-weight:900;
+  color:var(--accent); text-shadow:0 0 25px var(--accent); letter-spacing:4px;
+}
+#hdr-sub { font-size:0.7rem; letter-spacing:3px; color:var(--dim); text-transform:uppercase; margin-top:3px; }
+#live-dot {
+  display:flex; align-items:center; gap:10px;
+  font-family:'Orbitron',sans-serif; font-size:0.75rem; letter-spacing:2px; color:var(--accent3);
+}
+.pulse-dot {
+  width:12px; height:12px; border-radius:50%;
+  background:var(--accent3); box-shadow:0 0 10px var(--accent3);
+  animation: livepulse 1s infinite;
+}
+@keyframes livepulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.4);opacity:0.6} }
+#player-count { font-family:'Orbitron',sans-serif; font-size:0.9rem; color:var(--warn); }
+
+/* ── MAIN ── */
+#main {
+  height: calc(100vh - 70px);
+  display:flex; flex-direction:column;
+  padding: 24px 36px;
+  gap: 14px;
+  overflow: hidden;
+}
+
+/* ── EMPTY STATE ── */
+#empty-state {
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px;
+}
+#empty-state h2 { font-family:'Orbitron',sans-serif; font-size:1.8rem; color:var(--dim); letter-spacing:3px; }
+#empty-state p { font-size:1rem; color:var(--dim); text-align:center; line-height:1.8; }
+.qr-hint {
+  background:rgba(0,212,255,0.06); border:1px dashed var(--border);
+  border-radius:12px; padding:20px 32px; text-align:center;
+  font-size:0.9rem; color:var(--text); line-height:1.9;
+}
+.qr-hint strong { color:var(--accent); }
+
+/* ── PODIUM (top 3) ── */
+#podium {
+  display:flex; align-items:flex-end; justify-content:center; gap:16px;
+  height:180px; flex-shrink:0;
+}
+.podium-slot {
+  display:flex; flex-direction:column; align-items:center; gap:8px;
+  position:relative;
+}
+.podium-name {
+  font-family:'Orbitron',sans-serif; font-size:0.8rem; font-weight:700;
+  letter-spacing:1px; text-align:center; max-width:140px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.podium-pts {
+  font-family:'Orbitron',sans-serif; font-size:1.1rem; font-weight:900;
+}
+.podium-block {
+  width:130px; border-radius:8px 8px 0 0;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Orbitron',sans-serif; font-size:2rem; font-weight:900;
+}
+.podium-room {
+  font-size:0.7rem; letter-spacing:1px; color:rgba(255,255,255,0.6);
+}
+
+.p1 .podium-name { color:var(--gold); }
+.p1 .podium-pts  { color:var(--gold); text-shadow:0 0 15px var(--gold); }
+.p1 .podium-block { height:130px; background:linear-gradient(180deg,rgba(255,215,0,0.25),rgba(255,215,0,0.08)); border:1px solid var(--gold); box-shadow:0 0 20px rgba(255,215,0,0.2); }
+
+.p2 .podium-name { color:var(--silver); }
+.p2 .podium-pts  { color:var(--silver); }
+.p2 .podium-block { height:100px; background:linear-gradient(180deg,rgba(192,192,192,0.2),rgba(192,192,192,0.05)); border:1px solid var(--silver); }
+
+.p3 .podium-name { color:var(--bronze); }
+.p3 .podium-pts  { color:var(--bronze); }
+.p3 .podium-block { height:75px; background:linear-gradient(180deg,rgba(205,127,50,0.2),rgba(205,127,50,0.05)); border:1px solid var(--bronze); }
+
+/* ── RANKING LIST ── */
+#ranking-list {
+  flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:8px;
+}
+
+.rank-row {
+  display:grid;
+  grid-template-columns: 48px 1fr 160px 100px 80px;
+  align-items:center; gap:12px;
+  background: linear-gradient(90deg, var(--panel), rgba(12,18,32,0.6));
+  border:1px solid var(--border);
+  border-radius:10px; padding:12px 20px;
+  transition:all 0.4s cubic-bezier(.2,.8,.3,1);
+  animation: rowIn 0.5s ease;
+}
+@keyframes rowIn { from{opacity:0;transform:translateX(-20px)} to{opacity:1;transform:none} }
+
+.rank-row.rank-1 { border-color:rgba(255,215,0,0.4); background:linear-gradient(90deg,rgba(255,215,0,0.07),rgba(12,18,32,0.8)); }
+.rank-row.rank-2 { border-color:rgba(192,192,192,0.3); }
+.rank-row.rank-3 { border-color:rgba(205,127,50,0.3); }
+.rank-row.finished { border-color:rgba(0,255,157,0.3); background:linear-gradient(90deg,rgba(0,255,157,0.05),rgba(12,18,32,0.8)); }
+
+.rank-num {
+  font-family:'Orbitron',sans-serif; font-size:1.1rem; font-weight:700;
+  color:var(--dim); text-align:center;
+}
+.rank-1 .rank-num { color:var(--gold); text-shadow:0 0 10px var(--gold); }
+.rank-2 .rank-num { color:var(--silver); }
+.rank-3 .rank-num { color:var(--bronze); }
+
+.rank-name {
+  font-family:'Orbitron',sans-serif; font-size:0.95rem; font-weight:700;
+  color:#e8f4ff; letter-spacing:1px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.finished .rank-name::after {
+  content:' ✅'; font-size:0.7rem;
+}
+
+.rank-progress { display:flex; flex-direction:column; gap:4px; }
+.progress-bar-outer {
+  height:6px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden;
+}
+.progress-bar-inner {
+  height:100%; border-radius:3px;
+  background:linear-gradient(90deg,var(--accent),var(--accent3));
+  transition:width 0.6s ease;
+}
+.progress-label {
+  font-size:0.68rem; color:var(--dim); letter-spacing:1px;
+}
+
+.rank-pts {
+  font-family:'Orbitron',sans-serif; font-size:1.1rem; font-weight:700;
+  color:var(--accent3); text-align:right;
+  text-shadow:0 0 8px rgba(0,255,157,0.3);
+}
+
+.rank-errs {
+  font-size:0.85rem; color:var(--danger); text-align:center;
+}
+
+/* scrollbar */
+::-webkit-scrollbar { width:3px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--dim); border-radius:2px; }
+
+/* ── RESET BTN ── */
+#reset-btn {
+  position:fixed; bottom:16px; right:20px;
+  background:transparent; border:1px solid var(--dim);
+  border-radius:6px; padding:6px 14px;
+  color:var(--dim); font-family:'Exo 2',sans-serif; font-size:0.75rem;
+  cursor:pointer; transition:all 0.2s; letter-spacing:1px;
+}
+#reset-btn:hover { border-color:var(--danger); color:var(--danger); }
+</style>
+</head>
+<body>
+
+<div id="hdr">
+  <div>
+    <div id="hdr-title">✈ OPERATION SKYWEB</div>
+    <div id="hdr-sub">Live Rangliste — Airfreight Escape Room</div>
+  </div>
+  <div id="live-dot"><div class="pulse-dot"></div>LIVE</div>
+  <div>
+    <div id="player-count" style="text-align:right">0 Spieler</div>
+    <div style="font-size:0.65rem;color:var(--dim);letter-spacing:2px;text-align:right;margin-top:2px;">Aktualisierung alle 3 Sek.</div>
+  </div>
+</div>
+
+<div id="main">
+  <div id="empty-state">
+    <h2>⏳ WARTEN AUF SPIELER…</h2>
+    <p>Schickt die Datei <strong style="color:var(--accent)">airfreight-escape-room.html</strong> an alle Teilnehmer.<br>
+    Sobald jemand startet erscheint er hier automatisch.</p>
+    <div class="qr-hint">
+      📋 <strong>Anleitung für Teilnehmer:</strong><br>
+      1. Datei öffnen im Browser<br>
+      2. Namen eingeben<br>
+      3. Mission starten — ihr erscheint sofort hier auf dem Beamer
+    </div>
+  </div>
+
+  <div id="podium" style="display:none"></div>
+  <div id="ranking-list"></div>
+</div>
+
+<button id="reset-btn" onclick="resetLeaderboard()">🗑 Rangliste zurücksetzen</button>
+
+<script>
+const TOTAL_ROOMS = 20;
+let lastData = {};
+
+async function fetchPlayers() {
+  try {
+    const result = await window.storage.list('skyweb:player:', true);
+    if (!result || !result.keys || result.keys.length === 0) return [];
+    const players = [];
+    for (const key of result.keys) {
+      try {
+        const entry = await window.storage.get(key, true);
+        if (entry && entry.value) {
+          const p = JSON.parse(entry.value);
+          players.push(p);
+        }
+      } catch(e) {}
+    }
+    return players.sort((a,b) => {
+      if (b.pts !== a.pts) return b.pts - a.pts;
+      return b.room - a.room;
+    });
+  } catch(e) { return []; }
+}
+
+function renderPodium(players) {
+  const podium = document.getElementById('podium');
+  if (players.length === 0) { podium.style.display='none'; return; }
+  podium.style.display='flex';
+
+  const order = [players[1], players[0], players[2]].filter(Boolean);
+  const classes = players.length >= 2 ? ['p2','p1','p3'] : ['p1'];
+  const medals = ['🥈','🥇','🥉'];
+  const heights = players.length >= 2 ? [100,130,75] : [130,130,75];
+
+  podium.innerHTML = order.map((p, i) => {
+    const origRank = players.indexOf(p) + 1;
+    const cls = origRank === 1 ? 'p1' : origRank === 2 ? 'p2' : 'p3';
+    const medal = origRank === 1 ? '🥇' : origRank === 2 ? '🥈' : '🥉';
+    const h = origRank === 1 ? 130 : origRank === 2 ? 100 : 75;
+    return `
+      <div class="podium-slot ${cls}">
+        <div class="podium-name">${esc(p.name)}</div>
+        <div class="podium-pts">${p.pts} Pkt</div>
+        <div class="podium-room" style="font-size:0.65rem;color:var(--dim)">Raum ${p.room}/${TOTAL_ROOMS}</div>
+        <div class="podium-block" style="height:${h}px">${medal}</div>
+      </div>`;
+  }).join('');
+}
+
+function renderList(players) {
+  const list = document.getElementById('ranking-list');
+  const empty = document.getElementById('empty-state');
+
+  if (players.length === 0) {
+    empty.style.display = 'flex';
+    list.innerHTML = '';
+    document.getElementById('player-count').textContent = '0 Spieler';
+    return;
+  }
+
+  empty.style.display = 'none';
+  document.getElementById('player-count').textContent = `${players.length} Spieler`;
+
+  list.innerHTML = players.map((p, i) => {
+    const pct = Math.round(((p.room - 1) / TOTAL_ROOMS) * 100);
+    const rankClass = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : '';
+    const finClass = p.done ? 'finished' : '';
+    const rankIcon = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i+1);
+    return `
+      <div class="rank-row ${rankClass} ${finClass}">
+        <div class="rank-num">${rankIcon}</div>
+        <div class="rank-name">${esc(p.name)}</div>
+        <div class="rank-progress">
+          <div class="progress-bar-outer">
+            <div class="progress-bar-inner" style="width:${pct}%"></div>
+          </div>
+          <div class="progress-label">Raum ${p.room} / ${TOTAL_ROOMS}${p.done ? ' — ✅ Fertig!' : ''}</div>
+        </div>
+        <div class="rank-pts">${p.pts} Pkt</div>
+        <div class="rank-errs">${p.errs > 0 ? '❌ '+p.errs : '✅ 0'} Fehler</div>
+      </div>`;
+  }).join('');
+}
+
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function tick() {
+  const players = await fetchPlayers();
+  renderPodium(players.slice(0,3));
+  renderList(players);
+}
+
+async function resetLeaderboard() {
+  if (!confirm('Rangliste wirklich löschen?')) return;
+  try {
+    const result = await window.storage.list('skyweb:player:', true);
+    if (result && result.keys) {
+      for (const key of result.keys) {
+        try { await window.storage.delete(key, true); } catch(e) {}
+      }
+    }
+  } catch(e) {}
+  tick();
+}
+
+// Start polling
+tick();
+setInterval(tick, 3000);
+</script>
+</body>
+</html>
