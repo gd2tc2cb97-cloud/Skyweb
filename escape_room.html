@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OPERATION SKYWEB — Airfreight Crisis</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600;700&display=swap');
+
+:root {
+  --bg: #050810;
+  --panel: #0c1220;
+  --panel2: #111d30;
+  --border: #1a3a5c;
+  --accent: #00d4ff;
+  --accent2: #ff4d00;
+  --accent3: #00ff9d;
+  --warn: #ffd700;
+  --danger: #ff2244;
+  --text: #b8cfe8;
+  --dim: #3a5070;
+  --glow: rgba(0,212,255,0.15);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:100%; height:100%; overflow:hidden; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Exo 2', sans-serif;
+  background-image:
+    radial-gradient(ellipse at 20% 50%, rgba(0,80,160,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(0,180,100,0.05) 0%, transparent 50%);
+}
+
+/* ── SCANLINES ── */
+body::before {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:9998;
+  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px);
+}
+
+/* ── HEADER ── */
+#hdr {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 28px;
+  background: linear-gradient(90deg, #080f1e 0%, #0c1828 50%, #080f1e 100%);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 30px rgba(0,212,255,0.1);
+  position:relative; z-index:100;
+}
+#hdr-left { display:flex; flex-direction:column; }
+#hdr-title { font-family:'Orbitron',sans-serif; font-size:1rem; font-weight:900; letter-spacing:4px; color:var(--accent); text-shadow:0 0 20px var(--accent); }
+#hdr-sub { font-size:0.65rem; letter-spacing:3px; color:var(--dim); text-transform:uppercase; margin-top:2px; }
+#hdr-center { display:flex; flex-direction:column; align-items:center; gap:6px; }
+#timer {
+  font-family:'Orbitron',sans-serif; font-size:2.2rem; font-weight:700;
+  color:var(--warn); text-shadow:0 0 20px var(--warn);
+  letter-spacing:3px; line-height:1;
+}
+#timer.red { color:var(--danger); text-shadow:0 0 20px var(--danger); animation:urgentblink 0.4s infinite; }
+@keyframes urgentblink { 50%{opacity:0.3} }
+#phase-dots { display:flex; gap:6px; }
+.pdot { width:10px; height:10px; border-radius:50%; border:2px solid var(--dim); transition:all 0.4s; }
+.pdot.done { background:var(--accent3); border-color:var(--accent3); box-shadow:0 0 8px var(--accent3); }
+.pdot.active { border-color:var(--accent); box-shadow:0 0 10px var(--accent); animation:pdotpulse 1s infinite; }
+@keyframes pdotpulse { 50%{transform:scale(1.4)} }
+#hdr-right { display:flex; gap:24px; }
+.stat { text-align:center; }
+.stat-val { font-family:'Orbitron',sans-serif; font-size:1.3rem; font-weight:700; }
+.stat-val.pts { color:var(--accent3); text-shadow:0 0 10px var(--accent3); }
+.stat-val.err { color:var(--danger); }
+.stat-lbl { font-size:0.6rem; letter-spacing:2px; color:var(--dim); text-transform:uppercase; }
+
+/* ── STAGE ── */
+#stage { display:flex; height:calc(100vh - 60px); }
+
+/* ── SIDEBAR ── */
+#sidebar {
+  width:260px; min-width:260px;
+  background:var(--panel); border-right:1px solid var(--border);
+  display:flex; flex-direction:column; overflow:hidden;
+}
+#crisis-feed {
+  padding:14px; border-bottom:1px solid var(--border);
+  font-size:0.75rem; line-height:1.7;
+}
+#crisis-feed .feed-title { font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:3px; color:var(--accent2); margin-bottom:8px; }
+.feed-item { display:flex; gap:8px; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+.feed-dot { width:7px; height:7px; border-radius:50%; margin-top:5px; flex-shrink:0; }
+.feed-dot.red { background:var(--danger); box-shadow:0 0 6px var(--danger); }
+.feed-dot.yellow { background:var(--warn); box-shadow:0 0 6px var(--warn); }
+.feed-dot.green { background:var(--accent3); box-shadow:0 0 6px var(--accent3); }
+.feed-dot.blue { background:var(--accent); box-shadow:0 0 6px var(--accent); }
+#intel-log {
+  flex:1; padding:14px; overflow-y:auto;
+}
+#intel-log .log-title { font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:3px; color:var(--accent); margin-bottom:10px; }
+.log-entry { font-size:0.78rem; color:var(--accent3); padding:5px 0; border-bottom:1px solid rgba(0,255,157,0.08); line-height:1.5; }
+.log-empty { font-size:0.75rem; color:var(--dim); font-style:italic; }
+
+/* ── MAIN ── */
+#main { flex:1; display:flex; align-items:center; justify-content:center; padding:20px; position:relative; overflow:hidden; }
+
+/* ── CARD BASE ── */
+.card {
+  background: linear-gradient(135deg, var(--panel) 0%, var(--panel2) 100%);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:32px 36px;
+  max-width:800px; width:100%;
+  box-shadow: 0 0 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.03);
+  animation: cardin 0.5s cubic-bezier(.2,.8,.3,1);
+  position:relative; overflow:hidden;
+}
+.card::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+@keyframes cardin { from{opacity:0;transform:translateY(30px) scale(0.97)} to{opacity:1;transform:none} }
+
+.phase-badge { font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:3px; padding:4px 12px; border-radius:20px; display:inline-block; margin-bottom:10px; text-transform:uppercase; }
+.pb-easy   { background:rgba(0,255,157,0.12); border:1px solid var(--accent3); color:var(--accent3); }
+.pb-medium { background:rgba(255,215,0,0.12); border:1px solid var(--warn); color:var(--warn); }
+.pb-hard   { background:rgba(255,77,0,0.12); border:1px solid var(--accent2); color:var(--accent2); }
+.pb-boss   { background:rgba(255,34,68,0.15); border:1px solid var(--danger); color:var(--danger); animation:bossglw 1.5s infinite; }
+@keyframes bossglw { 50%{box-shadow:0 0 15px var(--danger)} }
+
+.card h2 { font-family:'Orbitron',sans-serif; font-size:1.3rem; font-weight:700; color:#e8f4ff; margin-bottom:6px; letter-spacing:1px; }
+.room-num { font-size:0.65rem; letter-spacing:3px; color:var(--dim); text-transform:uppercase; margin-bottom:16px; }
+.narrative { font-size:0.95rem; line-height:1.75; color:#8aadcc; margin-bottom:20px; }
+.narrative strong { color:var(--warn); }
+.narrative em { color:var(--accent2); font-style:normal; font-weight:600; }
+
+/* ── CHOICE ── */
+.choices { display:flex; flex-direction:column; gap:9px; }
+.choice-btn {
+  background:rgba(0,212,255,0.04); border:1px solid var(--border);
+  border-radius:10px; padding:13px 18px;
+  color:var(--text); font-family:'Exo 2',sans-serif; font-size:0.95rem; font-weight:600;
+  text-align:left; cursor:pointer; transition:all 0.2s; letter-spacing:0.3px;
+  display:flex; align-items:center; gap:12px;
+}
+.choice-letter { font-family:'Orbitron',sans-serif; font-size:0.8rem; color:var(--dim); min-width:20px; }
+.choice-btn:hover { background:rgba(0,212,255,0.12); border-color:var(--accent); color:#fff; transform:translateX(6px); }
+.choice-btn:hover .choice-letter { color:var(--accent); }
+.choice-btn.correct { background:rgba(0,255,157,0.12); border-color:var(--accent3); color:var(--accent3); pointer-events:none; }
+.choice-btn.wrong   { background:rgba(255,34,68,0.1);  border-color:var(--danger);  color:var(--danger);  pointer-events:none; animation:shake 0.4s; }
+.choice-btn:disabled { opacity:0.4; pointer-events:none; }
+@keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-10px)} 60%{transform:translateX(8px)} 80%{transform:translateX(-5px)} }
+
+/* ── CODE INPUT ── */
+.code-wrap { display:flex; gap:10px; align-items:center; margin-top:16px; flex-wrap:wrap; }
+.code-inp {
+  background:rgba(0,212,255,0.06); border:2px solid var(--border); border-radius:8px;
+  padding:10px 18px; color:var(--accent); font-family:'Orbitron',sans-serif;
+  font-size:1.4rem; letter-spacing:5px; width:200px; text-align:center; outline:none;
+  transition:all 0.2s;
+}
+.code-inp:focus { border-color:var(--accent); box-shadow:0 0 15px rgba(0,212,255,0.2); }
+.code-inp.shake { animation:shake 0.4s; border-color:var(--danger); }
+.go-btn {
+  background:var(--accent); border:none; border-radius:8px;
+  padding:10px 28px; color:#050810;
+  font-family:'Orbitron',sans-serif; font-size:0.8rem; font-weight:700;
+  letter-spacing:2px; cursor:pointer; transition:all 0.2s; text-transform:uppercase;
+}
+.go-btn:hover { background:#fff; transform:scale(1.05); box-shadow:0 0 20px var(--accent); }
+
+/* ── DRAG & DROP ── */
+.drag-area { display:flex; gap:16px; flex-wrap:wrap; margin:12px 0; }
+.drag-item {
+  background:rgba(0,212,255,0.08); border:1px solid var(--border);
+  border-radius:8px; padding:10px 16px;
+  color:var(--text); font-size:0.9rem; font-weight:600;
+  cursor:grab; transition:all 0.2s; user-select:none;
+}
+.drag-item:hover { border-color:var(--accent); color:#fff; transform:scale(1.03); }
+.drag-item.dragging { opacity:0.4; }
+.drag-item.placed { opacity:0.3; pointer-events:none; }
+
+.drop-zones { display:flex; flex-direction:column; gap:10px; margin:12px 0; }
+.drop-zone {
+  border:2px dashed var(--dim); border-radius:10px;
+  padding:12px 18px; min-height:50px;
+  display:flex; align-items:center; gap:12px;
+  transition:all 0.2s; font-size:0.9rem;
+}
+.drop-zone .zone-label { color:var(--dim); font-size:0.8rem; letter-spacing:1px; min-width:100px; }
+.drop-zone.dragover { border-color:var(--accent); background:rgba(0,212,255,0.07); }
+.drop-zone.correct-drop { border-color:var(--accent3); background:rgba(0,255,157,0.07); }
+.drop-zone.wrong-drop  { border-color:var(--danger); background:rgba(255,34,68,0.07); animation:shake 0.4s; }
+.dropped-chip {
+  background:var(--accent); color:#050810;
+  padding:5px 12px; border-radius:6px; font-size:0.85rem; font-weight:700;
+}
+
+/* ── SORT / ORDER ── */
+.sortable-list { display:flex; flex-direction:column; gap:8px; margin:12px 0; }
+.sort-item {
+  background:rgba(255,215,0,0.06); border:1px solid rgba(255,215,0,0.2);
+  border-radius:8px; padding:11px 16px;
+  color:var(--text); font-size:0.9rem; font-weight:600;
+  cursor:grab; display:flex; align-items:center; gap:12px;
+  transition:border-color 0.2s;
+}
+.sort-item:hover { border-color:var(--warn); }
+.sort-item .drag-handle { color:var(--dim); font-size:1.2rem; }
+.sort-item.dragging { opacity:0.3; }
+.sort-item.drag-over { border-color:var(--accent); background:rgba(0,212,255,0.07); }
+
+/* ── REVEAL / CARD FLIP ── */
+.flip-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:12px 0; }
+.flip-card { height:90px; perspective:600px; cursor:pointer; }
+.flip-inner { position:relative; width:100%; height:100%; transition:transform 0.5s; transform-style:preserve-3d; }
+.flip-card.flipped .flip-inner { transform:rotateY(180deg); }
+.flip-face { position:absolute; inset:0; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:0.85rem; font-weight:600; text-align:center; padding:10px; backface-visibility:hidden; }
+.flip-front { background:rgba(0,212,255,0.07); border:1px solid var(--border); color:var(--accent); font-family:'Orbitron',sans-serif; font-size:1.5rem; }
+.flip-back  { background:rgba(255,215,0,0.08); border:1px solid rgba(255,215,0,0.3); color:var(--text); transform:rotateY(180deg); }
+.flip-card.matched .flip-back { background:rgba(0,255,157,0.1); border-color:var(--accent3); }
+
+/* ── TIMELINE SORT ── */
+.timeline-task { font-size:0.88rem; color:var(--dim); margin-bottom:10px; }
+.timeline-items { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+.tl-chip {
+  background:rgba(255,77,0,0.08); border:1px solid rgba(255,77,0,0.3);
+  border-radius:8px; padding:8px 14px;
+  font-size:0.85rem; font-weight:600; cursor:pointer; transition:all 0.2s;
+  user-select:none;
+}
+.tl-chip:hover { border-color:var(--accent2); color:#fff; }
+.tl-chip.selected { background:var(--accent2); border-color:var(--accent2); color:#fff; }
+.tl-slots { display:flex; gap:8px; flex-wrap:wrap; }
+.tl-slot {
+  border:2px dashed var(--dim); border-radius:8px;
+  padding:8px 14px; min-width:80px; min-height:38px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:0.85rem; font-weight:600; color:var(--dim);
+  transition:all 0.2s; cursor:pointer;
+}
+.tl-slot:hover { border-color:var(--accent); }
+.tl-slot.filled { border-color:var(--accent2); color:var(--accent2); cursor:default; }
+.tl-slot.correct { border-color:var(--accent3); background:rgba(0,255,157,0.08); color:var(--accent3); }
+.tl-slot.wrong   { border-color:var(--danger); background:rgba(255,34,68,0.08); animation:shake 0.4s; }
+
+/* ── HOTSPOT MAP ── */
+.map-container {
+  position:relative; margin:12px 0;
+  border:1px solid var(--border); border-radius:12px; overflow:hidden;
+}
+.map-svg { width:100%; height:220px; display:block; }
+.hotspot {
+  cursor:pointer; transition:all 0.2s;
+}
+.hotspot circle { transition:all 0.2s; }
+.hotspot:hover circle { r:16; }
+.hotspot.activated circle { fill:rgba(0,255,157,0.3); stroke:var(--accent3); }
+.hotspot.wrong-spot circle { fill:rgba(255,34,68,0.3); stroke:var(--danger); }
+.map-question { font-size:0.9rem; color:var(--text); margin-bottom:10px; }
+
+/* ── WIRE PUZZLE ── */
+.wire-area { position:relative; height:200px; margin:12px 0; user-select:none; }
+.wire-svg { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+.wire-label-l, .wire-label-r { position:absolute; display:flex; flex-direction:column; gap:20px; }
+.wire-label-l { left:10px; top:20px; }
+.wire-label-r { right:10px; top:20px; }
+.wire-node {
+  display:flex; align-items:center; gap:8px;
+  font-size:0.85rem; font-weight:600; cursor:pointer;
+  padding:5px; border-radius:6px; transition:background 0.2s;
+}
+.wire-node:hover { background:rgba(255,255,255,0.05); }
+.node-dot { width:14px; height:14px; border-radius:50%; border:2px solid var(--dim); cursor:pointer; transition:all 0.2s; flex-shrink:0; }
+.node-dot:hover { transform:scale(1.3); }
+.node-dot.active { border-color:var(--warn); box-shadow:0 0 10px var(--warn); background:rgba(255,215,0,0.2); }
+.node-dot.connected { border-color:var(--accent3); background:rgba(0,255,157,0.2); }
+.wire-path { stroke-width:3; fill:none; stroke-linecap:round; transition:all 0.3s; }
+
+/* ── FEEDBACK ── */
+#feedback {
+  margin-top:14px; padding:12px 16px; border-radius:8px;
+  font-size:0.9rem; line-height:1.6; display:none; animation:cardin 0.3s;
+}
+#feedback.ok  { background:rgba(0,255,157,0.08); border:1px solid var(--accent3); color:var(--accent3); display:block; }
+#feedback.err { background:rgba(255,34,68,0.08); border:1px solid var(--danger);  color:var(--danger);  display:block; }
+
+/* ── CONTINUE ── */
+#continue-btn {
+  display:none; margin-top:18px;
+  background:transparent; border:2px solid var(--accent2);
+  border-radius:10px; padding:13px 44px;
+  color:var(--accent2); font-family:'Orbitron',sans-serif; font-size:0.8rem; font-weight:700;
+  letter-spacing:3px; text-transform:uppercase; cursor:pointer; transition:all 0.25s;
+}
+#continue-btn:hover { background:var(--accent2); color:#fff; box-shadow:0 0 25px var(--accent2); }
+#continue-btn.show { display:inline-block; animation:cardin 0.4s; }
+
+/* ── LIVES ── */
+.hearts { display:flex; gap:5px; margin-top:8px; }
+.heart { font-size:1rem; transition:opacity 0.3s; }
+.heart.lost { opacity:0.15; }
+
+/* ── INTRO ── */
+#intro-screen {
+  position:fixed; inset:0; z-index:200;
+  background:var(--bg);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:24px; text-align:center; padding:40px;
+}
+#intro-screen h1 { font-family:'Orbitron',sans-serif; font-size:2.5rem; font-weight:900; color:var(--accent); text-shadow:0 0 40px var(--accent); letter-spacing:4px; }
+#intro-screen .tagline { font-size:1.1rem; color:#7a9abf; max-width:600px; line-height:1.8; }
+.crisis-badges { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; }
+.crisis-badge { background:rgba(255,34,68,0.1); border:1px solid var(--danger); border-radius:8px; padding:10px 20px; font-size:0.85rem; font-weight:600; color:var(--danger); }
+.start-btn {
+  background:var(--accent); border:none; border-radius:10px;
+  padding:16px 56px; color:#050810;
+  font-family:'Orbitron',sans-serif; font-size:1rem; font-weight:700;
+  letter-spacing:3px; cursor:pointer; transition:all 0.25s; text-transform:uppercase;
+  margin-top:10px;
+}
+.start-btn:hover { background:#fff; box-shadow:0 0 30px var(--accent); transform:scale(1.04); }
+.mission-brief {
+  background:var(--panel); border:1px solid var(--border); border-radius:12px;
+  padding:20px 28px; max-width:640px; text-align:left; font-size:0.88rem; line-height:1.85;
+}
+.mission-brief strong { color:var(--warn); }
+
+/* ── END SCREEN ── */
+#end-screen {
+  display:none; position:fixed; inset:0; z-index:200;
+  background:rgba(0,0,0,0.95);
+  flex-direction:column; align-items:center; justify-content:center;
+  gap:20px; text-align:center; padding:40px;
+}
+#end-screen.show { display:flex; animation:cardin 0.6s; }
+#end-screen h1 { font-family:'Orbitron',sans-serif; font-size:2.8rem; font-weight:900; letter-spacing:5px; }
+#end-screen h1.win  { color:var(--accent3); text-shadow:0 0 50px var(--accent3); }
+#end-screen h1.lose { color:var(--danger);  text-shadow:0 0 50px var(--danger); }
+.end-score { font-family:'Orbitron',sans-serif; font-size:2rem; color:var(--warn); }
+.end-summary { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:20px 28px; max-width:660px; text-align:left; font-size:0.88rem; line-height:1.9; }
+.end-summary strong { color:var(--accent); }
+.replay-btn {
+  background:transparent; border:2px solid var(--accent);
+  border-radius:10px; padding:13px 50px;
+  color:var(--accent); font-family:'Orbitron',sans-serif; font-size:0.85rem; font-weight:700;
+  letter-spacing:3px; cursor:pointer; transition:all 0.25s; text-transform:uppercase;
+}
+.replay-btn:hover { background:var(--accent); color:#050810; }
+
+/* scrollbar */
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--dim); border-radius:2px; }
+
+/* ══════════════════════════════════════════
+   MOBILE & TABLET RESPONSIVE
+══════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* html/body scrollable on mobile */
+  html, body { overflow-y: auto; height: auto; }
+
+  /* ── HEADER ── */
+  #hdr { padding: 8px 14px; flex-wrap: wrap; gap: 6px; }
+  #hdr-title { font-size: 0.75rem; letter-spacing: 2px; }
+  #hdr-sub { font-size: 0.55rem; }
+  #timer { font-size: 1.4rem; }
+  #hdr-right { gap: 12px; }
+  .stat-val { font-size: 1rem; }
+  .stat-lbl { font-size: 0.55rem; }
+  .pdot { width: 8px; height: 8px; }
+
+  /* ── SIDEBAR verstecken ── */
+  #sidebar { display: none; }
+
+  /* ── STAGE ── */
+  #stage { height: auto; flex-direction: column; }
+  #main { padding: 12px; height: auto; min-height: calc(100vh - 60px); }
+
+  /* ── CARD ── */
+  .card { padding: 18px 16px; border-radius: 10px; }
+  .card h2 { font-size: 1.05rem; letter-spacing: 1px; }
+  .room-num { font-size: 0.6rem; }
+  .narrative { font-size: 0.88rem; line-height: 1.65; margin-bottom: 14px; }
+  .cat-badge { font-size: 0.6rem; padding: 3px 8px; }
+
+  /* ── CHOICES ── */
+  .choices { gap: 8px; }
+  .choice-btn { padding: 12px 14px; font-size: 0.9rem; border-radius: 8px; }
+  .choice-btn:hover { transform: none; }
+
+  /* ── CODE INPUT ── */
+  .code-wrap { flex-direction: column; align-items: flex-start; }
+  .code-inp { width: 100%; font-size: 1.2rem; }
+  .go-btn { width: 100%; padding: 12px; font-size: 0.85rem; }
+
+  /* ── DRAG & DROP ── */
+  .drag-area { gap: 8px; }
+  .drag-item { padding: 8px 12px; font-size: 0.85rem; }
+  .drop-zone { padding: 10px 12px; flex-direction: column; align-items: flex-start; gap: 6px; }
+  .zone-label { font-size: 0.75rem; min-width: unset; }
+
+  /* ── TIMELINE ── */
+  .timeline-items { gap: 6px; }
+  .tl-chip { padding: 7px 10px; font-size: 0.8rem; }
+  .tl-slot { padding: 7px 10px; font-size: 0.8rem; min-width: 60px; }
+
+  /* ── FLIP GRID ── */
+  .flip-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .flip-card { height: 75px; }
+  .flip-face { font-size: 0.75rem; padding: 8px; }
+  .flip-front { font-size: 1.2rem; }
+
+  /* ── WIRE ── */
+  .wire-area { height: 240px; }
+  .wire-node { font-size: 0.72rem; }
+  .node-dot { width: 12px; height: 12px; }
+
+  /* ── HOTSPOT MAP ── */
+  .map-svg { height: 180px; }
+
+  /* ── FEEDBACK ── */
+  #feedback { font-size: 0.85rem; padding: 10px 12px; }
+
+  /* ── CONTINUE BTN ── */
+  #continue-btn { width: 100%; padding: 14px; font-size: 0.75rem; letter-spacing: 2px; margin-top: 12px; }
+
+  /* ── INTRO SCREEN ── */
+  #intro-screen { padding: 24px 16px; gap: 16px; }
+  #intro-screen h1 { font-size: 1.6rem; letter-spacing: 2px; }
+  #intro-screen .tagline { font-size: 0.9rem; }
+  .crisis-badges { gap: 8px; }
+  .crisis-badge { font-size: 0.75rem; padding: 7px 12px; }
+  .mission-brief { padding: 14px 16px; font-size: 0.82rem; }
+  .start-btn { padding: 14px 36px; font-size: 0.85rem; letter-spacing: 2px; width: 100%; }
+  #player-name { width: 100% !important; }
+
+  /* ── END SCREEN ── */
+  #end-screen { padding: 24px 16px; gap: 14px; }
+  #end-screen h1 { font-size: 1.8rem; letter-spacing: 3px; }
+  .end-score { font-size: 1.4rem; }
+  .end-summary { padding: 14px 16px; font-size: 0.82rem; }
+  .replay-btn { width: 100%; padding: 13px; }
+}
+
+@media (max-width: 400px) {
+  #hdr-title { font-size: 0.65rem; }
+  .card h2 { font-size: 0.95rem; }
+  .flip-grid { grid-template-columns: repeat(2, 1fr); }
+  .flip-card { height: 65px; }
+}
+</style>
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════ INTRO ══ -->
+<div id="intro-screen">
+  <h1>✈ OPERATION SKYWEB</h1>
+  <p class="tagline">Das globale Airfreight-Netzwerk steht am Rand des Zusammenbruchs.<br>Drei Krisen. 20 Rätsel. Ihr habt 40 Minuten.</p>
+  <div class="crisis-badges">
+    <div class="crisis-badge">☢ Phase I: Russland-Ukraine-Krieg</div>
+    <div class="crisis-badge">🔥 Phase II: Iran-Konflikt & Straße von Hormus</div>
+    <div class="crisis-badge">🌋 Phase III: Naturkatastrophe</div>
+  </div>
+  <div class="mission-brief">
+    <strong>Eure Mission:</strong> Ihr seid das internationale Krisenteam von <strong>SKYWEB Logistics HQ</strong>. Drei gleichzeitige Krisen bedrohen das globale Luftfracht-Netzwerk. Löst alle 20 Rätsel, rettet die Lieferkette.<br><br>
+    ⚡ <strong>Falsche Antwort</strong> = −Punkte Abzug<br>
+    🏆 <strong>Geschwindigkeit</strong> zählt — je früher, desto mehr Punkte
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:4px;">
+    <label style="font-size:0.8rem;letter-spacing:2px;color:var(--dim);text-transform:uppercase;">Euer Name / Team-Name</label>
+    <input id="player-name" type="text" maxlength="20" placeholder="z.B. Team Alpha"
+      style="background:rgba(0,212,255,0.06);border:2px solid var(--border);border-radius:8px;padding:10px 20px;color:var(--accent);font-family:'Orbitron',sans-serif;font-size:1rem;letter-spacing:2px;text-align:center;outline:none;width:260px;"
+      onkeydown="if(event.key==='Enter')tryStart()"
+      onfocus="this.style.borderColor='var(--accent)'"
+      onblur="this.style.borderColor='var(--border)'"
+    />
+    <div id="name-error" style="color:var(--danger);font-size:0.8rem;min-height:16px;"></div>
+  </div>
+  <button class="start-btn" onclick="tryStart()">▶ MISSION STARTEN</button>
+</div>
+
+<!-- ══════════════════════════════════════════ HEADER ══ -->
+<div id="hdr">
+  <div id="hdr-left">
+    <div id="hdr-title">✈ OPERATION SKYWEB</div>
+    <div id="hdr-sub" id="phase-label">Warten auf Einsatz…</div>
+  </div>
+  <div id="hdr-center">
+    <div id="timer">40:00</div>
+    <div id="phase-dots"></div>
+  </div>
+  <div id="hdr-right">
+    <div class="stat"><div class="stat-val pts" id="pts">0</div><div class="stat-lbl">Punkte</div></div>
+    <div class="stat"><div class="stat-val err" id="errs">0</div><div class="stat-lbl">Fehler</div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ STAGE ══ -->
+<div id="stage">
+  <div id="sidebar">
+    <div id="crisis-feed">
+      <div class="feed-title">⚡ Live-Krisenfeed</div>
+      <div id="feed-items"></div>
+    </div>
+    <div id="intel-log">
+      <div class="log-title">🔐 Intel-Dossier</div>
+      <div id="log-entries"><div class="log-empty">Noch keine Daten entschlüsselt…</div></div>
+    </div>
+  </div>
+  <div id="main">
+    <div id="room-card" class="card" style="display:none"></div>
+    <button id="continue-btn" onclick="nextRoom()">WEITER → NÄCHSTE MISSION</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ END ══ -->
+<div id="end-screen">
+  <h1 id="end-title"></h1>
+  <p id="end-msg" style="color:#7a9abf;max-width:600px;font-size:1rem;line-height:1.75"></p>
+  <div class="end-score" id="end-score"></div>
+  <div class="end-summary" id="end-summary"></div>
+  <button class="replay-btn" onclick="location.reload()">🔄 NOCHMAL SPIELEN</button>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// GAME DATA  — 12 Räume, 3 Phasen, alle 4 Blöcke der Präsentation
+// ═══════════════════════════════════════════════════════════════
+const PHASES = [
+  { label:"PHASE I — Russland-Ukraine-Krieg", color:"#00d4ff", rooms:[0,1,2,3,4,5,6] },
+  { label:"PHASE II — Iran-Konflikt & Hormuz", color:"#ff4d00", rooms:[7,8,9,10,11,12,13] },
+  { label:"PHASE III — Naturkatastrophe & Ausblick", color:"#00ff9d", rooms:[14,15,16,17,18,19] }
+];
+
+const FEED_ITEMS = [
+  {dot:"red",   text:"Russland sperrt Überflug — Carrier melden +3–4h Umwege"},
+  {dot:"red",   text:"Iran droht Sperrung Straße von Hormus — 20% Weltölhandel betroffen"},
+  {dot:"yellow",text:"Eyjafjallajökull-Aktivität steigt — EU-Luftraum in Alarmbereitschaft"},
+  {dot:"yellow",text:"FRA meldet Kapazitätsengpass — Belly-Cargo um 60% reduziert"},
+  {dot:"blue",  text:"DXB Hub aktiv — Umrouting via Dubai läuft"},
+  {dot:"green", text:"IATA aktiviert Notfallprotokoll Net-Zero ausgesetzt"},
+];
+
+const ROOMS = [
+
+  // ═══ PHASE I — RUSSLAND-UKRAINE-KRIEG (Räume 1–7) ═══
+  {
+    id:1, phase:0, diff:"easy",
+    title:"Raum 1 — Die größten Luftfracht-Drehkreuze",
+    block:"Block 1: Grundlagen Airfreight Drehkreuze",
+    mechanic:"hotspot",
+    narrative:"Russland sperrt den Luftraum. Euer Krisenteam muss sofort wissen: <strong>Welche Drehkreuze</strong> sind die wichtigsten Ausweichoptionen weltweit?",
+    intel:"✈ Die 3 größten Cargo-Drehkreuze: Hong Kong, Memphis, Dubai",
+    question:"Klickt auf die <strong>3 größten Luftfracht-Drehkreuze</strong> der Welt auf der Karte:",
+    targets:["HKG","MEM","DXB"],
+    hotspots:[
+      {id:"HKG",x:78,y:45,label:"Hong Kong"},
+      {id:"FRA",x:47,y:28,label:"Frankfurt"},
+      {id:"MEM",x:18,y:33,label:"Memphis"},
+      {id:"DXB",x:58,y:42,label:"Dubai"},
+      {id:"PVG",x:75,y:36,label:"Shanghai"},
+      {id:"SIN",x:72,y:52,label:"Singapur"},
+    ],
+    explanation:"Hong Kong, Memphis und Dubai führen das globale Cargo-Ranking an. Sie sind die Knotenpunkte des Welthandels — ohne sie stoppt der globale Warenfluss."
+  },
+  {
+    id:2, phase:0, diff:"easy",
+    title:"Raum 2 — Was fliegt überhaupt per Luftfracht?",
+    block:"Block 1: Grundlagen Airfreight Drehkreuze",
+    mechanic:"choice",
+    narrative:"Russland-Überflugverbot aktiv. Euer Team muss priorisieren: Welche Güter <strong>müssen</strong> per Luftfracht transportiert werden — und welche nicht?",
+    intel:"✈ Luftfracht = zeitkritische, hochwertige Güter. Seefracht = schwer, billig, langsam.",
+    question:"Welche der folgenden Güter werden typischerweise <strong>NICHT</strong> per Luftfracht transportiert?",
+    choices:[
+      {text:"Frische Blumen aus Kenia für den europäischen Markt", correct:false, ex:"Falsch — Schnittblumen sind ein Paradebeispiel für Luftfracht! Sie verwelken in wenigen Tagen, Seefracht dauert zu lange. Kenya ist einer der größten Blumen-Luftfrachtexporteure der Welt."},
+      {text:"Rohöl und Kohle für Kraftwerke", correct:true, ex:"Richtig! Rohöl und Kohle sind viel zu schwer und billig für Luftfracht. Diese Massengüter gehen ausschließlich per Schiff oder Pipeline — Luftfracht würde das Hundertfache kosten."},
+      {text:"Ersatzteile für ein am Boden stehendes Flugzeug", correct:false, ex:"Falsch — Flugzeug-Ersatzteile sind das klassischste Beispiel für Luftfracht-Notfälle! Ein am Boden stehendes Flugzeug kostet bis zu 100.000€ pro Stunde."},
+      {text:"COVID-Impfstoffe für internationale Verteilung", correct:false, ex:"Falsch — Impfstoffe brauchen Kühlkette und Schnelligkeit. 2021 wurden Milliarden Dosen ausschließlich per Luftfracht über Dubai und Frankfurt verteilt."},
+    ],
+    explanation:"Luftfracht eignet sich für: Pharma, Elektronik, Blumen, Ersatzteile, Luxusgüter, verderbliche Waren. Nicht geeignet: Massengüter wie Öl, Kohle, Getreide — zu schwer, zu billig."
+  },
+  {
+    id:3, phase:0, diff:"easy",
+    title:"Raum 3 — Luftfrachtdokumente verstehen",
+    block:"Block 2: Formelle Administration",
+    mechanic:"drag",
+    narrative:"Russland-Sanktionen haben Frankfurts Zollsystem durcheinandergebracht. Ein Frachter aus Shanghai steckt fest. <strong>Ordnet die Dokumente ihren Aufgaben zu</strong> — ohne die richtigen Papiere hebt kein Flieger ab!",
+    intel:"📋 Das wichtigste Dokument der Luftfracht ist der Luftfrachtbrief — er ist Transportvertrag, Quittung und Eigentumsnachweis in einem.",
+    items:["Luftfrachtbrief","Gefahrgutdeklaration","Packliste","Handelsrechnung","Ladeliste des Flugzeugs"],
+    slots:[
+      {label:"Transportvertrag zwischen Absender und Airline", answer:"Luftfrachtbrief"},
+      {label:"Nachweis für gefährliche Sendungsinhalte", answer:"Gefahrgutdeklaration"},
+      {label:"Auflistung aller Güter an Bord des Flugzeugs", answer:"Ladeliste des Flugzeugs"},
+    ],
+    explanation:"Der Luftfrachtbrief ist das Herzstück jeder Luftfrachtlieferung — Transportvertrag, Empfangsbestätigung und Eigentumsnachweis in einem. Die Gefahrgutdeklaration ist Pflicht bei Batterien, Chemikalien usw. Die Ladeliste (Manifest) listet alle Sendungen eines Fluges."
+  },
+  {
+    id:4, phase:0, diff:"easy",
+    title:"Raum 4 — Überflugverbot-Kalkulation",
+    block:"Block 1: Grundlagen & Geographie",
+    mechanic:"choice",
+    narrative:"Das Überflugverbot ist aktiv. Carrier müssen umrouten. Der Finanzchef fragt: <em>Was kostet uns das pro Woche?</em> Eine Boeing 747 Frachtmaschine braucht via Russland 10 Stunden von Frankfurt nach Tokyo — via Umweg 13 Stunden.",
+    intel:"🔑 Russland 2022: Überflugverbot → durchschnittlich 3 Stunden Umweg nach Asien je Flug",
+    question:"Eine Frachtmaschine fliegt <strong>2× täglich</strong> Frankfurt–Tokyo. Kerosinkosten: 25.000 € pro Stunde. Wie viel Mehrkosten entstehen <strong>pro Woche</strong> durch den Umweg?",
+    choices:[
+      {text:"ca. 420.000 € pro Woche", correct:false, ex:"Zu niedrig. Rechnung: 3h × 25.000€ × 2 Flüge × 7 Tage = 1.050.000€ — nicht 420k."},
+      {text:"ca. 1.050.000 € pro Woche", correct:true, ex:"Richtig! 3 Stunden Umweg × 25.000 €/h × 2 Flüge täglich × 7 Tage = 1.050.000 € Mehrkosten pro Woche — allein durch das Überflugverbot."},
+      {text:"ca. 2.100.000 € pro Woche", correct:false, ex:"Zu hoch. Richtig: 3h × 25.000€ × 2 Flüge × 7 Tage = 1.050.000€."},
+      {text:"ca. 525.000 € pro Woche", correct:false, ex:"Nicht ganz. Ihr habt vermutlich nur einen Flug pro Tag gerechnet — es sind aber 2 Flüge täglich."},
+    ],
+    explanation:"3h Umweg × 25.000€/h × 2 Flüge/Tag × 7 Tage = 1.050.000€ pro Woche. Hochgerechnet auf ein Jahr sind das über 54 Millionen Euro Mehrkosten — nur durch das Überflugverbot."
+  },
+  {
+    id:5, phase:0, diff:"medium",
+    title:"Raum 5 — Wie funktioniert ein Drehkreuz?",
+    block:"Block 1: Grundlagen Airfreight Drehkreuze",
+    mechanic:"choice",
+    narrative:"Das Krisenteam fragt: Warum schicken Airlines Fracht überhaupt über Drehkreuze — statt direkt von A nach B? Versteht das System, um die Krise zu lösen!",
+    intel:"✈ Hub-and-Spoke: Alle Routen laufen über einen zentralen Knotenpunkt — wie Speichen über eine Radnabe.",
+    question:"Warum nutzen Luftfrachtunternehmen das Drehkreuz-System (Hub-and-Spoke) statt direkter Verbindungen zwischen allen Städten?",
+    choices:[
+      {text:"Weil Direktflüge gesetzlich verboten sind", correct:false, ex:"Falsch. Direktflüge sind nicht verboten — sie existieren sogar, zum Beispiel zwischen großen Metropolen. Aber wirtschaftlich sind sie oft nicht sinnvoll."},
+      {text:"Weil Drehkreuze Frachten bündeln und so Flugzeuge besser auslasten — das spart Kosten", correct:true, ex:"Richtig! Das ist der Kern des Drehkreuz-Systems: Statt 100 halbvoller Direktflüge gibt es 10 vollbeladene Flüge über den Hub. Das spart Kerosin, Personal und Kosten erheblich."},
+      {text:"Weil Frachtflugzeuge nur auf bestimmten Flughäfen landen dürfen", correct:false, ex:"Falsch. Frachtflugzeuge können grundsätzlich überall landen. Das Drehkreuz-System ist eine wirtschaftliche Entscheidung, keine gesetzliche."},
+      {text:"Weil Zollabfertigung nur an Drehkreuzen möglich ist", correct:false, ex:"Falsch. Zollabfertigung ist an vielen Flughäfen möglich — nicht nur an Drehkreuzen."},
+    ],
+    explanation:"Das Drehkreuz-System bündelt Fracht aus vielen Quellen an einem zentralen Punkt, füllt Flugzeuge komplett aus und verteilt sie dann weiter. Ergebnis: niedrigere Kosten pro Kilo Fracht. Der Nachteil: Störungen am Hub treffen das gesamte Netzwerk."
+  },
+  {
+    id:6, phase:0, diff:"medium",
+    title:"Raum 6 — Flugzeug am Boden: Was kostet das?",
+    block:"Block 4: Bedeutung der Drehkreuze",
+    mechanic:"choice",
+    narrative:"Ein Lufthansa-Frachtflugzeug steht in Dubai am Boden — ein technischer Defekt. Das Ersatzteil muss sofort per Expressfracht eingeflogen werden. <strong>Wie viel kostet jede Stunde Stillstand?</strong>",
+    intel:"✈ Ein am Boden stehendes Flugzeug (Aircraft on Ground) ist einer der teuersten Notfälle der Luftfahrt.",
+    question:"Laut eurer Präsentation: Wie viel kostet eine Airline pro Stunde, wenn ein Flugzeug wegen eines fehlenden Ersatzteils am Boden steht?",
+    choices:[
+      {text:"ca. 10.000 € pro Stunde", correct:false, ex:"Zu niedrig. Ein modernes Frachtflugzeug erzeugt durch Ausfall von Flügen, Crew-Kosten und Vertragsstrafen weitaus höhere Kosten."},
+      {text:"ca. 100.000 € pro Stunde", correct:true, ex:"Richtig! Ca. 100.000 € pro Stunde — das ist der Grund, warum Ersatzteile für Flugzeuge sofort und koste es was es wolle per Expressfracht geflogen werden. Jede Stunde Verzögerung ist teurer als der teuerste Flug."},
+      {text:"ca. 500.000 € pro Stunde", correct:false, ex:"Zu hoch. 100.000 € pro Stunde ist der realistische Richtwert aus der Präsentation."},
+      {text:"ca. 1.000 € pro Stunde", correct:false, ex:"Viel zu niedrig. Bei diesem Betrag würde sich Expressfracht ja kaum lohnen."},
+    ],
+    explanation:"100.000 € pro Stunde Stillstand erklärt alles: Expressfracht für Flugzeug-Ersatzteile kostet oft 50.000–200.000 € — aber das ist günstiger als ein weiterer Tag am Boden. Deshalb ist diese Frachtart weltweit die teuerste."
+  },
+  {
+    id:7, phase:0, diff:"medium",
+    title:"Raum 7 — Belly-Cargo verstehen",
+    block:"Block 4: COVID-Risiko & Belly-Cargo",
+    mechanic:"choice",
+    narrative:"Russland-Sanktionen reduzieren Passagierflüge nach Asien massiv. Das Krisenteam warnt: Das trifft nicht nur Reisende — <strong>auch die Luftfrachtkapazität bricht ein!</strong> Warum?",
+    intel:"🦠 Belly-Cargo = Fracht im Bauch von Passagierflugzeugen — macht ca. 50% aller Luftfrachtkapazität aus",
+    question:"Was versteht man unter 'Belly-Cargo' und warum ist es für die Luftfracht so wichtig?",
+    choices:[
+      {text:"Spezielle Kühlcontainer für verderbliche Waren", correct:false, ex:"Falsch. Kühlcontainer sind eine eigene Kategorie. Belly-Cargo bezieht sich auf den Laderaum unter dem Passagierdeck."},
+      {text:"Fracht, die im Bauch von Passagierflugzeugen transportiert wird — macht ~50% der Luftfrachtkapazität aus", correct:true, ex:"Richtig! Passagierflugzeuge transportieren nicht nur Menschen — unter dem Passagierdeck liegt der Frachtraum. Dieser 'Bauch' macht etwa 50% der weltweiten Luftfrachtkapazität aus. Fallen Passagierflüge weg, bricht auch die Frachtkapazität ein."},
+      {text:"Fracht die nur auf dem Bauch des Flugzeugs befestigt wird", correct:false, ex:"Falsch. Fracht wird immer im Inneren transportiert — niemals außen am Flugzeug befestigt."},
+      {text:"Eine besonders günstige Frachtklasse für leichte Waren", correct:false, ex:"Falsch. Belly-Cargo ist kein Tarif, sondern ein physischer Ort — der Laderaum unter dem Passagierdeck."},
+    ],
+    explanation:"Belly-Cargo ist einer der wichtigsten — und unterschätztesten — Teile der Luftfracht. Als COVID 2020 Passagierflüge stoppte, fiel gleichzeitig ~50% der weltweiten Luftfrachtkapazität weg. Das trieb die Preise um über 300% in die Höhe."
+  },
+
+  // ═══ PHASE II — IRAN-KONFLIKT & HORMUZ (Räume 8–14) ═══
+  {
+    id:8, phase:1, diff:"medium",
+    title:"Raum 8 — Luftfracht im Welthandel",
+    block:"Block 3: Daten & Fakten",
+    mechanic:"choice",
+    narrative:"<em>Iran-Konflikt eskaliert.</em> Das UN-Lagezentrum fordert eine Soforteinschätzung: Wie systemrelevant ist Luftfracht wirklich für den Welthandel? Volumen und Wert erzählen dabei <strong>völlig verschiedene Geschichten.</strong>",
+    intel:"📊 Luftfracht: nur ~1% des Welthandels nach Gewicht — aber ~35% nach Wert!",
+    question:"Luftfracht transportiert nur ca. 1% des weltweiten Frachtgewichts. Aber wie viel Prozent des <strong>gesamten Welthandelswerts</strong> transportiert die Luftfracht?",
+    choices:[
+      {text:"ca. 5% des Welthandelswerts",  correct:false, ex:"Zu niedrig. Denkt daran: Elektronik, Pharma, Luxusgüter — alles was teuer und klein ist fliegt. Die Zahl ist deutlich höher."},
+      {text:"ca. 15% des Welthandelswerts", correct:false, ex:"Näher dran, aber noch nicht richtig. Luftfracht ist wirtschaftlich weit bedeutender als ihr Gewichtsanteil vermuten lässt."},
+      {text:"ca. 35% des Welthandelswerts", correct:true,  ex:"Richtig! Nur 1% nach Gewicht — aber 35% nach Wert. Das ist die Stärke der Luftfracht: Sie bewegt nicht viel, aber das Wertvollste der Welt."},
+      {text:"ca. 60% des Welthandelswerts", correct:false, ex:"Zu hoch. Ca. 35% des Welthandelswerts ist die richtige Größenordnung."},
+    ],
+    explanation:"1% Gewicht, 35% Wert — das ist die wichtigste Kennzahl der Luftfracht. Sie erklärt, warum Luftfracht-Drehkreuze so systemkritisch sind: Sie bewegen Pharma, Elektronik, Luxusgüter — alles was teuer, klein und zeitkritisch ist."
+  },
+  {
+    id:9, phase:1, diff:"medium",
+    title:"Raum 9 — Dubai als Weltdrehkreuz",
+    block:"Block 1: Grundlagen Airfreight Drehkreuze",
+    mechanic:"choice",
+    narrative:"<em>Iran-Konflikt:</em> Dubai (Flughafen) steht unter Druck. Das Krisenteam muss verstehen, warum Dubai als Drehkreuz so einzigartig und unersetzlich ist.",
+    intel:"✈ Dubai Flughafen: innerhalb von 8 Flugstunden sind ca. 2/3 der Weltbevölkerung erreichbar",
+    question:"Was macht Dubai zum strategisch wichtigsten Luftfracht-Drehkreuz zwischen Asien, Europa und Afrika?",
+    choices:[
+      {text:"Dubai hat die meisten Frachtflugzeuge aller Flughäfen weltweit", correct:false, ex:"Falsch. Nach Anzahl der Frachtflugzeuge liegt Dubai nicht auf Platz 1. Der entscheidende Faktor ist die geografische Lage."},
+      {text:"Dubai liegt geografisch so, dass es innerhalb von 8 Flugstunden 2/3 der Weltbevölkerung erreicht", correct:true, ex:"Richtig! Dubais Alleinstellungsmerkmal ist seine einzigartige Lage zwischen Asien, Europa und Afrika. Innerhalb von 8 Flugstunden sind rund 4,5 Milliarden Menschen erreichbar — kein anderer Hub kann das."},
+      {text:"Dubai erhebt keine Steuern auf Luftfracht", correct:false, ex:"Steuervorteile gibt es zwar — aber das ist nicht der Hauptgrund für Dubais strategische Bedeutung als Drehkreuz."},
+      {text:"Dubai hat 24 Stunden am Tag geöffnet — andere Hubs nicht", correct:false, ex:"Falsch. Viele Fracht-Hubs wie Frankfurt, Hong Kong und Memphis betreiben ebenfalls 24/7-Betrieb."},
+    ],
+    explanation:"Dubais geografische Lage ist einzigartig: Auf halbem Weg zwischen Europa und Asien, mit direktem Zugang zu Afrika. Das macht den Flughafen zum perfekten Umschlagspunkt — und erklärt, warum Emirates Cargo eine der weltgrößten Frachtairlines ist."
+  },
+  {
+    id:10, phase:1, diff:"medium",
+    title:"Raum 10 — COVID-Krise rekonstruieren",
+    block:"Block 4: COVID-Risiko & Belly-Cargo",
+    mechanic:"timeline",
+    narrative:"Der Iran-Konflikt droht ähnliche Auswirkungen zu haben wie COVID 2020. Das Team muss den damaligen Kollaps der Luftfrachtkapazitäten in der <strong>richtigen Reihenfolge</strong> verstehen — um diesmal vorbereitet zu sein.",
+    intel:"🦠 COVID 2020: Frachtraumpreise stiegen um über 300% — innerhalb weniger Wochen",
+    task:"Bringt die COVID-Luftfrachtkrise in die richtige zeitliche Reihenfolge:",
+    items:["Frachtpreise steigen um +300%","Passagierflüge werden gestrichen","Belly-Cargo-Kapazität fällt weg","Reisebeschränkungen weltweit eingeführt","Reiner Frachtraum wird extrem knapp"],
+    correct:["Reisebeschränkungen weltweit eingeführt","Passagierflüge werden gestrichen","Belly-Cargo-Kapazität fällt weg","Reiner Frachtraum wird extrem knapp","Frachtpreise steigen um +300%"],
+    explanation:"Der Dominoeffekt: Reisebeschränkungen → Passagierflüge gestrichen → Belly-Cargo weg → Frachtraum knapp → Preisexplosion. Innerhalb von Wochen verdreifachten sich die Luftfrachtpreise weltweit."
+  },
+  {
+    id:11, phase:1, diff:"medium",
+    title:"Raum 11 — Krisendokumente zuordnen",
+    block:"Block 2: Formelle Administration",
+    mechanic:"flip",
+    narrative:"Ein verschlüsseltes Briefing ist eingegangen. Dreht die Karten um und <strong>findet die passenden Paare</strong> — Luftfracht-Begriff und seine Erklärung auf Deutsch!",
+    intel:"📄 Alle Begriffe vollständig ausgeschrieben — keine Abkürzungen!",
+    pairs:[
+      {a:"Luftfrachtbrief",          b:"Transportvertrag zwischen Absender und Airline"},
+      {a:"Gefahrgutdeklaration",     b:"Pflichtdokument für gefährliche Sendungen wie Batterien"},
+      {a:"Ladeliste (Manifest)",     b:"Gesamtliste aller Sendungen an Bord eines Fluges"},
+      {a:"Belly-Cargo",              b:"Fracht im Bauch von Passagierflugzeugen"},
+      {a:"Drehkreuz (Hub)",          b:"Zentraler Umschlagpunkt wo Fracht gebündelt wird"},
+      {a:"Kühlkette",                b:"Lückenlose Kühlung von Medikamenten & Lebensmitteln"},
+    ],
+    explanation:"Diese 6 Begriffe sind das Grundvokabular der Luftfracht: Luftfrachtbrief = zentrales Dokument, Gefahrgutdeklaration = Pflicht bei gefährlichen Gütern, Manifest = Pflicht für jeden Flug, Belly-Cargo = unterschätzte Kapazität, Hub = Herzstück des Netzwerks, Kühlkette = kritisch für Pharma."
+  },
+  {
+    id:12, phase:1, diff:"hard",
+    title:"Raum 12 — Shein & E-Commerce Luftfracht",
+    block:"Block 4: E-Commerce & Ausblick",
+    mechanic:"code",
+    narrative:"Der Krisenbericht zeigt: E-Commerce-Giganten wie <em>Shein und Temu</em> sind zu den größten Treibern des Luftfrachtvolumens geworden. Das Team braucht die Fakten für das UN-Briefing.",
+    intel:"📦 Shein versendet täglich Millionen Pakete per Luftfracht ab chinesischen Drehkreuzen",
+    question:"Wie viele Pakete versendet <strong>Shein täglich</strong> per Luftfracht? (Schätzt in Millionen — z.B. '2' oder '3')",
+    answer:"3",
+    alts:["2","3","2,5","2.5","2-3"],
+    hint:"Tipp: Irgendwo zwischen 2 und 3 Millionen Pakete täglich",
+    explanation:"Shein versendet schätzungsweise 2–3 Millionen Pakete täglich — fast ausschließlich per Luftfracht aus chinesischen Drehkreuzen wie Shanghai und Guangzhou. Das gesamte Ultra-Fast-Fashion-Geschäftsmodell von Shein und Temu wäre ohne günstige Luftfracht schlicht unmöglich."
+  },
+  {
+    id:13, phase:1, diff:"hard",
+    title:"Raum 13 — Preisanstieg berechnen",
+    block:"Block 3: Daten & Fakten",
+    mechanic:"choice",
+    narrative:"<em>Iran-Konflikt verschärft sich.</em> Kerosinpreise steigen, Kapazitäten sinken. Ein Spediteur zahlt normalerweise 3 € pro Kilogramm Luftfracht von Shanghai nach Frankfurt. Durch die Krise steigen die Preise um 40%.",
+    intel:"📊 Luftfrachtpreise reagieren extrem schnell auf Krisen — COVID trieb sie um über 300% in die Höhe",
+    question:"Der Spediteur verschickt wöchentlich <strong>500 kg</strong> Elektronik von Shanghai nach Frankfurt. Wie viel mehr zahlt er pro Woche durch den 40%-Preisanstieg?",
+    choices:[
+      {text:"300 € mehr pro Woche", correct:false, ex:"Zu niedrig. Rechnung: 500 kg × 3 €/kg × 40% = 600 € Mehrkosten — nicht 300 €."},
+      {text:"600 € mehr pro Woche", correct:true, ex:"Richtig! 500 kg × 3 €/kg = 1.500 € normal. 40% davon = 600 € Mehrkosten pro Woche. Hochgerechnet auf ein Jahr: über 31.000 € Mehrkosten allein durch diesen einen Krisenfaktor."},
+      {text:"1.200 € mehr pro Woche", correct:false, ex:"Zu hoch. 500 kg × 3 €/kg × 40% = 600 € — nicht 1.200 €."},
+      {text:"150 € mehr pro Woche", correct:false, ex:"Zu niedrig. Richtig: 500 × 3 × 0,4 = 600 €."},
+    ],
+    explanation:"500 kg × 3 €/kg = 1.500 € Normalpreis. 40% Aufschlag = 600 € Mehrkosten pro Woche. Krisen machen Luftfracht massiv teurer — deshalb sind langfristige Frachtverträge so wichtig."
+  },
+  {
+    id:14, phase:1, diff:"hard",
+    title:"Raum 14 — Welche Güter brauchen Expressfracht?",
+    block:"Block 4: Bedeutung der Drehkreuze",
+    mechanic:"drag",
+    narrative:"Iran-Krise: Kapazitäten sind begrenzt. Das Krisenteam muss entscheiden, welche Güter <strong>absolute Priorität</strong> für Expressfracht haben — und welche warten können.",
+    intel:"✈ Expressfracht = höchste Priorität, teuerste Option — nur für wirklich zeitkritische Güter",
+    items:["Transplantationsorgane","Möbel für ein Büro","Impfstoffe mit Kühlkette","Ersatzteile für stehendes Flugzeug","Bücher für eine Bibliothek"],
+    slots:[
+      {label:"Sofort-Expressfracht (Leben & Tod)", answer:"Transplantationsorgane"},
+      {label:"Expressfracht (zeitkritisch & teuer)", answer:"Ersatzteile für stehendes Flugzeug"},
+      {label:"Kühlketten-Expressfracht (Pharma)", answer:"Impfstoffe mit Kühlkette"},
+    ],
+    explanation:"Transplantationsorgane haben ein Zeitfenster von wenigen Stunden — Expressfracht ist buchstäblich lebensrettend. Flugzeug-Ersatzteile kosten 100.000€/Stunde Stillstand. Impfstoffe brauchen lückenlose Kühlkette. Möbel und Bücher können per Seefracht warten."
+  },
+
+  // ═══ PHASE III — NATURKATASTROPHE & AUSBLICK (Räume 15–20) ═══
+  {
+    id:15, phase:2, diff:"hard",
+    title:"Raum 15 — Vulkanasche: Luftfracht-Alternativen",
+    block:"Block 4: Naturkatastrophen & Resilienz",
+    mechanic:"choice",
+    narrative:"<em>Eyjafjallajökull reloaded:</em> Der europäische Luftraum ist gesperrt. Frankfurt und Amsterdam sind dicht. 500 kg dringend benötigte Medikamente müssen trotzdem von Dubai nach Berlin. <strong>Was ist die beste Alternative?</strong>",
+    intel:"🌋 Eyjafjallajökull 2010: 8 Tage Sperrung — Carrier wichen auf Südrouten via Madrid & Rom aus",
+    question:"Der EU-Luftraum ist durch Vulkanasche gesperrt. Welche Lösung bringt die zeitkritische Luftfracht am schnellsten ans Ziel?",
+    choices:[
+      {text:"Warten bis der Luftraum wieder öffnet", correct:false, ex:"Falsch. 2010 dauerte die Sperrung 8 Tage. Bei Medikamenten mit Kühlkette ist Warten keine Option."},
+      {text:"Charterflug via Südroute (Dubai → Madrid → Berlin per Expresskurier)", correct:true, ex:"Richtig! Das war die Standardlösung 2010: Charterflüge umflogen die Aschewolke via Südeuropa (Madrid, Rom, Athen) — dann Expresskurier per LKW nach Norden. Teuer, aber die einzige Option."},
+      {text:"Umweg über den Nordpol (Dubai → Kanada → Berlin)", correct:false, ex:"Nicht optimal. Nordpol-Routen sind für Asien–Amerika gedacht. Der Umweg Dubai–Kanada–Berlin wäre enorm lang und teurer als die Südroute."},
+      {text:"Umrouting via Moskau als Ausweich-Drehkreuz", correct:false, ex:"Falsch — im Kontext der Russland-Sanktionen ist Moskau keine Option. Außerdem liegt es im potenziellen Aschekorridor."},
+    ],
+    explanation:"Bei Luftraumsperrungen weichen Carrier auf Südrouten via Madrid, Rom oder Athen aus — außerhalb der Aschewolke. Die letzte Meile in gesperrte Regionen übernimmt dann Expresskurier per LKW. Das zeigt: Hubs brauchen immer einen Plan B."
+  },
+  {
+    id:16, phase:2, diff:"hard",
+    title:"Raum 16 — Eyjafjallajökull: Die Zahlen",
+    block:"Block 4: Naturkatastrophen & Resilienz",
+    mechanic:"choice",
+    narrative:"2010 legte der isländische Vulkan Eyjafjallajökull den europäischen Luftraum lahm. Das war einer der größten Luftfahrt-Notfälle der Geschichte. <strong>Wie lange dauerte die Sperrung?</strong>",
+    intel:"🌋 Eyjafjallajökull 2010 — über 100.000 Flüge gestrichen, Lieferketten europaweit kollabiert",
+    question:"Wie viele Tage war der europäische Luftraum durch den Vulkanausbruch Eyjafjallajökull im Jahr 2010 gesperrt?",
+    choices:[
+      {text:"2 Tage", correct:false, ex:"Zu kurz. 2 Tage wären verkraftbar gewesen — die tatsächliche Sperrung war deutlich länger und hatte massive wirtschaftliche Folgen."},
+      {text:"8 Tage", correct:true, ex:"Richtig! 8 Tage dauerte die weitgehende Sperrung des europäischen Luftraums. Über 100.000 Flüge wurden gestrichen. Der wirtschaftliche Schaden für Luftfahrt und Lieferketten betrug mehrere Milliarden Euro."},
+      {text:"21 Tage", correct:false, ex:"Zu lang. Die Hauptsperrung dauerte 8 Tage — danach gab es noch vereinzelte Einschränkungen, aber keine vollständige Sperrung mehr."},
+      {text:"3 Tage", correct:false, ex:"Zu kurz. Die Sperrung dauerte 8 Tage — lang genug um Lieferketten weltweit zu beeinträchtigen."},
+    ],
+    explanation:"8 Tage Sperrung, über 100.000 gestrichene Flüge, Milliarden Euro Schaden. Der Eyjafjallajökull-Ausfall ist bis heute das Paradebeispiel dafür: Je effizienter ein Luftfracht-Netzwerk, desto verwundbarer ist es bei Störungen."
+  },
+  {
+    id:17, phase:2, diff:"hard",
+    title:"Raum 17 — Nachhaltiger Kraftstoff für Flugzeuge",
+    block:"Block 4: Nachhaltigkeit & Ausblick",
+    mechanic:"choice",
+    narrative:"Nach der Krise fordert die EU Sofortmaßnahmen zur Nachhaltigkeit. Nachhaltiger Flugkraftstoff soll eingeführt werden — aber wie effektiv ist er wirklich? Das Team braucht die Fakten.",
+    intel:"🌱 Nachhaltiger Flugkraftstoff (englisch: Sustainable Aviation Fuel) — IATA setzt ihn als Schlüsseltechnologie für 2050 ein",
+    question:"Wie viel CO₂ kann nachhaltiger Flugkraftstoff im Vergleich zu herkömmlichem Kerosin einsparen?",
+    choices:[
+      {text:"ca. 10–20% weniger CO₂", correct:false, ex:"Zu wenig. Nachhaltiger Flugkraftstoff ist deutlich wirksamer — je nach Herstellungsverfahren."},
+      {text:"ca. 30–40% weniger CO₂", correct:false, ex:"Näher dran, aber noch zu niedrig. Das Einsparpotenzial ist über den gesamten Lebenszyklus betrachtet deutlich höher."},
+      {text:"bis zu 80% weniger CO₂",  correct:true,  ex:"Richtig! Über den gesamten Lebenszyklus betrachtet kann nachhaltiger Flugkraftstoff bis zu 80% weniger CO₂ ausstoßen als fossiles Kerosin. Das macht ihn zur wichtigsten Technologie auf dem Weg zur klimaneutralen Luftfracht."},
+      {text:"100% CO₂-neutral", correct:false, ex:"Nicht ganz. Vollständig CO₂-neutral ist er nicht — aber bis zu 80% Reduktion ist je nach Rohstoff und Produktionsverfahren möglich."},
+    ],
+    explanation:"Nachhaltiger Flugkraftstoff kann bis zu 80% CO₂ einsparen — über den gesamten Lebenszyklus. Aktuell wird er bei weniger als 1% aller Flüge eingesetzt, ist aber 3–5× teurer als normales Kerosin. Die IATA hat das Ziel: Netto-Null CO₂ bis 2050."
+  },
+  {
+    id:18, phase:2, diff:"hard",
+    title:"Raum 18 — Krisenjahr 2022 berechnen",
+    block:"Block 3: Daten & Fakten",
+    mechanic:"choice",
+    narrative:"Abschlussbilanz: Durch Russland-Überflugverbot, Iran-Spannungen und Vulkanasche ist 2022 ein Rekordjahr für Luftfracht-Krisen. Das Team muss die <strong>Gesamtmehrkosten</strong> eines Airlines für ein Jahr hochrechnen.",
+    intel:"📊 Russland 2022: +3h Umweg × 25.000 €/h — täglich auf Hunderten von Flügen",
+    question:"Eine Airline fliegt täglich <strong>10 Flüge</strong> nach Asien. Durch das Überflugverbot entsteht pro Flug 3 Stunden Umweg à 25.000 €/h. Wie viel Mehrkosten entstehen in <strong>30 Tagen</strong>?",
+    choices:[
+      {text:"ca. 15 Millionen €", correct:false, ex:"Zu niedrig. Rechnung: 3h × 25.000€ × 10 Flüge × 30 Tage = 22,5 Mio. €."},
+      {text:"ca. 22,5 Millionen €", correct:true, ex:"Richtig! 3h × 25.000 €/h × 10 Flüge/Tag × 30 Tage = 22.500.000 € Mehrkosten in einem Monat — allein durch das Überflugverbot. Auf ein Jahr hochgerechnet: 270 Millionen Euro."},
+      {text:"ca. 45 Millionen €", correct:false, ex:"Zu hoch. Richtige Rechnung: 3 × 25.000 × 10 × 30 = 22.500.000 €."},
+      {text:"ca. 7,5 Millionen €", correct:false, ex:"Zu niedrig. Ihr habt vermutlich nur einen Faktor falsch eingesetzt — richtig: 3 × 25.000 × 10 × 30 = 22,5 Mio. €."},
+    ],
+    explanation:"3h × 25.000€ × 10 Flüge × 30 Tage = 22.500.000 € in einem Monat. Auf ein Jahr: ~270 Mio. €. Das erklärt, warum das Überflugverbot für Luftfahrtunternehmen existenzbedrohend sein kann."
+  },
+  {
+    id:19, phase:2, diff:"hard",
+    title:"Raum 19 — Zukunft der Luftfracht",
+    block:"Block 4: Nachhaltigkeit & Ausblick",
+    mechanic:"choice",
+    narrative:"Die Krise ist überstanden. Das Team blickt in die Zukunft: Wie wird sich die Luftfracht bis 2050 verändern? Welche Technologien und Trends werden das Bild prägen?",
+    intel:"🌱 IATA-Ziel: Netto-Null CO₂ bis 2050 — durch nachhaltigen Kraftstoff, neue Flugzeuge und digitale Optimierung",
+    question:"Welche Kombination von Maßnahmen hat die IATA auf dem Weg zu Netto-Null CO₂ bis 2050 als wichtigste identifiziert?",
+    choices:[
+      {text:"Alle Frachtflugzeuge sofort durch Elektroflugzeuge ersetzen", correct:false, ex:"Nicht realistisch. Elektroflugzeuge für schwere Frachtmaschinen sind technologisch noch nicht verfügbar — Batterien sind noch zu schwer für Langstrecken."},
+      {text:"Nachhaltiger Kraftstoff, modernere Flugzeuge und digitale Optimierung der Routen", correct:true, ex:"Richtig! Die IATA setzt auf einen Mix: Nachhaltiger Kraftstoff (bis zu 80% CO₂-Einsparung), neue kraftstoffeffiziente Flugzeuge und KI-gestützte Routenoptimierung. Kein einzelner Faktor reicht allein."},
+      {text:"Luftfracht komplett auf Drohnen umstellen", correct:false, ex:"Nicht realistisch für 2050. Drohnen können kleine Pakete transportieren — aber keine Frachtflugzeuge mit 100 Tonnen Nutzlast ersetzen."},
+      {text:"Alle Luftfrachtrouten auf Seefracht umstellen", correct:false, ex:"Falsch. Seefracht dauert Wochen statt Stunden — zeitkritische Güter wie Pharma, Ersatzteile und Frischware könnten nicht per Schiff transportiert werden."},
+    ],
+    explanation:"Die IATA setzt auf drei Säulen: Nachhaltiger Kraftstoff (größter Hebel), neue effizientere Flugzeuge und digitale Routenoptimierung durch KI. Das Ziel: Netto-Null CO₂ bis 2050 — ohne auf Luftfracht zu verzichten."
+  },
+  {
+    id:20, phase:2, diff:"boss",
+    title:"⚡ FINALE — Gesamtkosten der Dreifach-Krise",
+    block:"Alle 4 Blöcke — Abschlussrechnung",
+    mechanic:"choice",
+    narrative:"<em>FINALE:</em> Operation Skyweb ist fast abgeschlossen. Der Vorstand braucht eine Gesamtbilanz der Dreifach-Krise. Berechnet die <strong>Gesamtmehrkosten</strong> für einen Monat aus allen drei Krisen zusammen!",
+    intel:"🔐 FINALE: Kombiniert alles was ihr gelernt habt — Russland-Umweg + Preisanstieg + Ausfallkosten",
+    question:`<strong>Dreifach-Krise — Monatsbilanz:</strong><br><br>
+    🇷🇺 Russland-Umweg: 5 Flüge/Tag × 3h Umweg × 25.000€/h × 30 Tage = ?<br>
+    ✈ Flugzeugstillstand: 1 Flugzeug steht 48 Stunden am Boden × 100.000€/h = ?<br>
+    📦 Frachtpreisanstieg: 10.000 kg/Woche × 3€/kg × 40% Aufschlag × 4 Wochen = ?<br><br>
+    Was sind die <strong>Gesamtmehrkosten</strong> für diesen Monat?`,
+    choices:[
+      {text:"ca. 10 Millionen €", correct:false, ex:"Zu niedrig. Rechnet nochmal: Russland (11,25 Mio.) + Stillstand (4,8 Mio.) + Preisanstieg (48.000€) = ca. 16,1 Mio. €."},
+      {text:"ca. 16,1 Millionen €", correct:true, ex:"Richtig! Russland: 5×3×25.000×30 = 11.250.000€. Stillstand: 48×100.000 = 4.800.000€. Preisanstieg: 10.000×3×0,4×4 = 48.000€. Gesamt: ~16.098.000 €. Das ist die reale Last einer Dreifach-Krise!"},
+      {text:"ca. 25 Millionen €", correct:false, ex:"Zu hoch. Russland (11,25 Mio.) + Stillstand (4,8 Mio.) + Preisanstieg (48k) = ~16,1 Mio. €."},
+      {text:"ca. 5 Millionen €", correct:false, ex:"Viel zu niedrig. Allein der Flugzeugstillstand kostet 48h × 100.000€/h = 4,8 Mio. €."},
+    ],
+    explanation:"Russland-Umweg: 11.250.000€ | Flugzeugstillstand: 4.800.000€ | Frachtpreisanstieg: 48.000€ | Gesamt: ~16.098.000€. Diese Rechnung zeigt: Krisen in der Luftfracht sind kein abstraktes Problem — sie haben konkrete, millionenschwere Auswirkungen."
+  }
+];
+
+// ═══════════════════════════════════════════════════════════════
+// FIREBASE SETUP
+// ═══════════════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyAXIQEDnvf4-Dx-ex0J2vuz2Y-nRtoxDrg",
+  authDomain: "skyweb-d8c16.firebaseapp.com",
+  databaseURL: "https://skyweb-d8c16-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "skyweb-d8c16",
+  storageBucket: "skyweb-d8c16.firebasestorage.app",
+  messagingSenderId: "876847717589",
+  appId: "1:876847717589:web:68a0717616eea1990e165c"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let G = {
+  room: 0,
+  pts: 0,
+  errs: 0,
+  intel: [],
+  timerSec: 2400,
+  timerInt: null,
+  syncInt: null,
+  done: false,
+  lives: 3,
+  playerName: '',
+  hotClicked: [],
+  hotTargets: [],
+  dragSelected: null,
+  dropFilled: {},
+  tlSelected: null,
+  tlSlots: [],
+  flipFlipped: [],
+  flipPairs: [],
+  flipMatched: 0,
+  wireSelected: null,
+  wireConnections: [],
+};
+
+// ═══════════════════════════════════════════════════════════════
+// LEADERBOARD SYNC
+// ═══════════════════════════════════════════════════════════════
+async function syncToLeaderboard() {
+  if (!G.playerName) return;
+  try {
+    const key = G.playerName.replace(/[.#$[\]\s]/g, '_');
+    db.ref('skyweb/players/' + key).set({
+      name: G.playerName,
+      pts: G.pts,
+      room: G.room + 1,
+      total: ROOMS.length,
+      errs: G.errs,
+      done: G.done,
+      ts: Date.now()
+    });
+  } catch(e) { console.warn('Sync error:', e); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+function tryStart() {
+  const inp = document.getElementById('player-name');
+  const name = inp.value.trim();
+  if (!name) {
+    document.getElementById('name-error').textContent = '⚠ Bitte einen Namen eingeben!';
+    inp.style.borderColor = 'var(--danger)';
+    return;
+  }
+  G.playerName = name;
+  startGame();
+}
+
+function startGame() {
+  document.getElementById('intro-screen').style.display = 'none';
+  document.getElementById('room-card').style.display = '';
+  buildDots();
+  initFeed();
+  startTimer();
+  G.syncInt = setInterval(syncToLeaderboard, 5000);
+  syncToLeaderboard();
+  renderRoom();
+}
+
+function buildDots() {
+  const wrap = document.getElementById('phase-dots');
+  wrap.innerHTML = '';
+  ROOMS.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'pdot' + (i === 0 ? ' active' : '');
+    d.id = 'dot-' + i;
+    wrap.appendChild(d);
+  });
+}
+
+function initFeed() {
+  const el = document.getElementById('feed-items');
+  el.innerHTML = FEED_ITEMS.map(f =>
+    `<div class="feed-item"><div class="feed-dot ${f.dot}"></div><div>${f.text}</div></div>`
+  ).join('');
+}
+
+function startTimer() {
+  clearInterval(G.timerInt);
+  G.timerInt = setInterval(() => {
+    G.timerSec--;
+    tickTimer();
+    if (G.timerSec <= 0) { clearInterval(G.timerInt); endGame(false); }
+  }, 1000);
+}
+
+function tickTimer() {
+  const m = Math.floor(G.timerSec / 60).toString().padStart(2, '0');
+  const s = (G.timerSec % 60).toString().padStart(2, '0');
+  const el = document.getElementById('timer');
+  el.textContent = m + ':' + s;
+  el.classList.toggle('red', G.timerSec <= 120);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ROOM RENDER
+// ═══════════════════════════════════════════════════════════════
+function renderRoom() {
+  const r = ROOMS[G.room];
+  G.done = false; G.lives = 3;
+  G.hotClicked = []; G.dragSelected = null; G.dropFilled = {};
+  G.tlSelected = null; G.tlSlots = []; G.flipFlipped = []; G.flipMatched = 0; G.wireSelected = null; G.wireConnections = [];
+
+  document.getElementById('continue-btn').classList.remove('show');
+
+  // update dots + phase label
+  ROOMS.forEach((_, i) => {
+    const d = document.getElementById('dot-' + i);
+    if (!d) return;
+    d.className = 'pdot';
+    if (i < G.room) d.classList.add('done');
+    else if (i === G.room) d.classList.add('active');
+  });
+  const phase = PHASES.find(p => p.rooms.includes(G.room));
+  document.getElementById('hdr-sub').textContent = phase ? phase.label : '';
+
+  const card = document.getElementById('room-card');
+  card.style.animation = 'none'; card.offsetHeight; card.style.animation = '';
+
+  const diffClass = { easy:'pb-easy', medium:'pb-medium', hard:'pb-hard', boss:'pb-boss' }[r.diff] || 'pb-easy';
+  const diffLabel = { easy:'● LEICHT', medium:'●● MITTEL', hard:'●●● SCHWER', boss:'⚡ FINALE' }[r.diff] || '';
+
+  card.innerHTML = `
+    <div class="phase-badge ${diffClass}">${diffLabel} &nbsp;|&nbsp; ${r.block}</div>
+    <div class="room-num">Mission ${r.id} / ${ROOMS.length}</div>
+    <h2>${r.title}</h2>
+    <p class="narrative">${r.narrative}</p>
+    <div id="mechanic-area"></div>
+    <div id="feedback"></div>
+  `;
+
+  buildMechanic(r);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MECHANIC BUILDERS
+// ═══════════════════════════════════════════════════════════════
+function buildMechanic(r) {
+  const area = document.getElementById('mechanic-area');
+  if (r.mechanic === 'choice')   buildChoice(r, area);
+  else if (r.mechanic === 'code') buildCode(r, area);
+  else if (r.mechanic === 'drag') buildDrag(r, area);
+  else if (r.mechanic === 'timeline') buildTimeline(r, area);
+  else if (r.mechanic === 'hotspot') buildHotspot(r, area);
+  else if (r.mechanic === 'flip') buildFlip(r, area);
+  else if (r.mechanic === 'wire') buildWire(r, area);
+}
+
+/* ── CHOICE ── */
+function buildChoice(r, area) {
+  area.innerHTML = `<p style="font-size:0.95rem;color:#a0bcd8;margin-bottom:12px;">${r.question}</p>
+  <div class="choices">${r.choices.map((c, i) =>
+    `<button class="choice-btn" onclick="doChoice(${i})">
+      <span class="choice-letter">${String.fromCharCode(65+i)}</span>${c.text}
+    </button>`
+  ).join('')}</div>`;
+}
+function doChoice(idx) {
+  if (G.done) return;
+  const r = ROOMS[G.room];
+  const btns = document.querySelectorAll('.choice-btn');
+  const c = r.choices[idx];
+  if (c.correct) {
+    btns[idx].classList.add('correct');
+    btns.forEach((b, i) => { if (i !== idx) b.disabled = true; });
+    success(c.ex);
+  } else {
+    btns[idx].classList.add('wrong'); btns[idx].disabled = true;
+    penalty(c.ex);
+  }
+}
+
+/* ── CODE ── */
+function buildCode(r, area) {
+  area.innerHTML = `<p style="font-size:0.95rem;color:#a0bcd8;margin-bottom:12px;">${r.question}</p>
+  <p style="font-size:0.8rem;color:var(--dim);margin-bottom:12px;">${r.hint}</p>
+  <div class="code-wrap">
+    <input type="text" class="code-inp" id="code-inp" placeholder="???" maxlength="10" autocomplete="off"/>
+    <button class="go-btn" onclick="doCode()">BESTÄTIGEN</button>
+  </div>
+  <div class="hearts" id="hearts">${'<span class="heart">❤️</span>'.repeat(3)}</div>`;
+  document.getElementById('code-inp').addEventListener('keydown', e => { if (e.key === 'Enter') doCode(); });
+}
+function doCode() {
+  if (G.done) return;
+  const r = ROOMS[G.room];
+  const val = document.getElementById('code-inp').value.trim().replace(/\./g,'').replace(/,/g,'').toUpperCase();
+  const valid = [r.answer, ...(r.alts||[])].map(a => a.toString().replace(/\./g,'').replace(/,/g,'').toUpperCase());
+  if (valid.includes(val)) {
+    success(r.explanation);
+  } else {
+    G.lives--;
+    const inp = document.getElementById('code-inp');
+    inp.classList.add('shake'); setTimeout(() => inp.classList.remove('shake'), 400);
+    const hearts = document.querySelectorAll('.heart');
+    if (hearts[G.lives]) hearts[G.lives].classList.add('lost');
+    if (G.lives <= 0) { penalty(r.explanation); G.done = true; document.getElementById('continue-btn').classList.add('show'); }
+    else { showFb('err', `❌ Falsch! Noch ${G.lives} Versuch(e).`); G.errs++; updateStats(); }
+  }
+}
+
+/* ── DRAG ── */
+function buildDrag(r, area) {
+  const shuffled = [...r.items].sort(() => Math.random() - 0.5);
+  area.innerHTML = `
+    <p style="font-size:0.9rem;color:var(--dim);margin-bottom:10px;">Zieht die Begriffe in die richtigen Felder:</p>
+    <div class="drag-area" id="drag-pool">
+      ${shuffled.map(it => `<div class="drag-item" draggable="true" data-val="${it}" ondragstart="dragStart(event)">${it}</div>`).join('')}
+    </div>
+    <div class="drop-zones">
+      ${r.slots.map((s, i) => `
+        <div class="drop-zone" id="dz-${i}" ondragover="dragOver(event)" ondrop="doDrop(event,${i})" data-answer="${s.answer}">
+          <span class="zone-label">📌 ${s.label}</span>
+          <span id="dz-chip-${i}"></span>
+        </div>`).join('')}
+    </div>`;
+}
+function dragStart(e) { e.dataTransfer.setData('text', e.target.dataset.val); }
+function dragOver(e) { e.preventDefault(); e.currentTarget.classList.add('dragover'); }
+function doDrop(e, idx) {
+  if (G.done) return;
+  e.preventDefault();
+  const val = e.dataTransfer.getData('text');
+  const zone = document.getElementById('dz-' + idx);
+  zone.classList.remove('dragover');
+  if (G.dropFilled[idx]) return;
+  const answer = zone.dataset.answer;
+  const chip = document.getElementById('dz-chip-' + idx);
+  chip.innerHTML = `<span class="dropped-chip">${val}</span>`;
+  G.dropFilled[idx] = val;
+  // mark source as placed
+  document.querySelectorAll('.drag-item').forEach(d => { if (d.dataset.val === val) d.classList.add('placed'); });
+  if (val === answer) {
+    zone.classList.add('correct-drop');
+  } else {
+    zone.classList.add('wrong-drop');
+    penalty('❌ ' + val + ' gehört hier nicht hin!');
+    setTimeout(() => {
+      zone.classList.remove('wrong-drop'); chip.innerHTML = ''; delete G.dropFilled[idx];
+      document.querySelectorAll('.drag-item').forEach(d => { if (d.dataset.val === val) d.classList.remove('placed'); });
+    }, 800);
+    return;
+  }
+  const r = ROOMS[G.room];
+  if (Object.keys(G.dropFilled).length === r.slots.length) {
+    success(r.explanation);
+  }
+}
+/* ── TIMELINE ── */
+function buildTimeline(r, area) {
+  const shuffled = [...r.items].sort(() => Math.random() - 0.5);
+  G.tlSlots = new Array(r.items.length).fill(null);
+  area.innerHTML = `
+    <p class="timeline-task">${r.task}</p>
+    <div class="timeline-items" id="tl-chips">
+      ${shuffled.map((it, i) => `<div class="tl-chip" id="tc-${i}" onclick="tlSelect(this,'${it}')">${it}</div>`).join('')}
+    </div>
+    <div style="font-size:0.8rem;color:var(--dim);margin-bottom:6px;">Klickt einen Begriff → dann einen Slot:</div>
+    <div class="tl-slots" id="tl-slots">
+      ${r.items.map((_, i) => `<div class="tl-slot" id="ts-${i}" onclick="tlPlace(${i})">${i+1}</div>`).join('')}
+    </div>`;
+}
+function tlSelect(el, val) {
+  document.querySelectorAll('.tl-chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  G.tlSelected = val;
+}
+function tlPlace(idx) {
+  if (!G.tlSelected || G.done) return;
+  const r = ROOMS[G.room];
+  const slot = document.getElementById('ts-' + idx);
+  if (slot.classList.contains('filled')) return;
+  slot.textContent = G.tlSelected;
+  slot.classList.add('filled');
+  G.tlSlots[idx] = G.tlSelected;
+  // remove chip
+  document.querySelectorAll('.tl-chip').forEach(c => { if (c.textContent === G.tlSelected) c.style.display = 'none'; });
+  G.tlSelected = null;
+  document.querySelectorAll('.tl-chip').forEach(c => c.classList.remove('selected'));
+  // check if all filled
+  if (G.tlSlots.every(s => s !== null)) {
+    let allOk = true;
+    G.tlSlots.forEach((v, i) => {
+      const slot = document.getElementById('ts-' + i);
+      if (v === r.correct[i]) { slot.classList.add('correct'); }
+      else { slot.classList.add('wrong'); allOk = false; }
+    });
+    if (allOk) {
+      success(r.explanation);
+    } else {
+      penalty('❌ Nicht ganz richtig! ' + r.explanation);
+      G.done = true;
+      document.getElementById('continue-btn').classList.add('show');
+    }
+  }
+}
+
+/* ── HOTSPOT ── */
+function buildHotspot(r, area) {
+  G.hotTargets = [...r.targets];
+  area.innerHTML = `<p class="map-question">${r.question}</p>
+  <div class="map-container">
+    <svg class="map-svg" viewBox="0 0 100 65" id="map-svg">
+      <!-- simplified world outline -->
+      <rect width="100" height="65" fill="#0a1628"/>
+      <!-- continents simplified -->
+      <ellipse cx="48" cy="30" rx="8" ry="6" fill="#1a3050" opacity="0.8"/>
+      <ellipse cx="20" cy="32" rx="14" ry="8" fill="#1a3050" opacity="0.8"/>
+      <ellipse cx="75" cy="35" rx="18" ry="10" fill="#1a3050" opacity="0.8"/>
+      <ellipse cx="58" cy="22" rx="12" ry="8" fill="#1a3050" opacity="0.8"/>
+      <!-- grid lines -->
+      <line x1="0" y1="32" x2="100" y2="32" stroke="#1e3a5c" stroke-width="0.3"/>
+      <line x1="50" y1="0" x2="50" y2="65" stroke="#1e3a5c" stroke-width="0.3"/>
+      ${r.hotspots.map(h =>
+        `<g class="hotspot" id="hs-${h.id}" onclick="doHotspot('${h.id}')">
+          <circle cx="${h.x}" cy="${h.y}" r="3.5" fill="rgba(0,212,255,0.15)" stroke="#00d4ff" stroke-width="0.8"/>
+          <text x="${h.x}" y="${h.y + 6.5}" text-anchor="middle" font-size="3.5" fill="#00d4ff" font-family="Orbitron">${h.label}</text>
+        </g>`
+      ).join('')}
+    </svg>
+  </div>
+  <div style="font-size:0.8rem;color:var(--dim);margin-top:8px;">Gewählt: <span id="hs-selected" style="color:var(--accent)">keine</span></div>`;
+}
+function doHotspot(id) {
+  if (G.done) return;
+  const r = ROOMS[G.room];
+  if (G.hotClicked.includes(id)) return;
+  G.hotClicked.push(id);
+  const el = document.getElementById('hs-' + id);
+  if (r.targets.includes(id)) {
+    el.classList.add('activated');
+    el.querySelector('circle').setAttribute('fill', 'rgba(0,255,157,0.3)');
+    el.querySelector('circle').setAttribute('stroke', '#00ff9d');
+    if (G.hotClicked.filter(x => r.targets.includes(x)).length === r.targets.length) {
+      success(r.explanation);
+    }
+  } else {
+    el.classList.add('wrong-spot');
+    el.querySelector('circle').setAttribute('fill', 'rgba(255,34,68,0.3)');
+    el.querySelector('circle').setAttribute('stroke', '#ff2244');
+    penalty('❌ ' + id + ' ist nicht unter den Top-3. Weitersuchen!');
+  }
+  document.getElementById('hs-selected').textContent = G.hotClicked.filter(x => r.targets.includes(x)).join(', ') || 'keine';
+}
+
+/* ── FLIP ── */
+function buildFlip(r, area) {
+  const all = [...r.pairs.flatMap(p => [
+    {id:'a-'+r.pairs.indexOf(p), val:p.a, type:'term'},
+    {id:'b-'+r.pairs.indexOf(p), val:p.b, type:'def'},
+  ])].sort(() => Math.random()-0.5);
+  G.flipFlipped = []; G.flipPairs = r.pairs; G.flipMatched = 0;
+  area.innerHTML = `<p style="font-size:0.88rem;color:var(--dim);margin-bottom:10px;">Dreht Karten um und findet die ${r.pairs.length} passenden Paare:</p>
+  <div class="flip-grid" id="flip-grid">
+    ${all.map(c =>
+      `<div class="flip-card" id="fc-${c.id}" onclick="doFlip('${c.id}','${c.val.replace(/'/g,"\\'")}','${c.type}')">
+        <div class="flip-inner">
+          <div class="flip-face flip-front">?</div>
+          <div class="flip-face flip-back">${c.val}</div>
+        </div>
+      </div>`
+    ).join('')}
+  </div>`;
+}
+function doFlip(id, val, type) {
+  if (G.done) return;
+  const card = document.getElementById('fc-' + id);
+  if (card.classList.contains('matched') || card.classList.contains('flipped')) return;
+  card.classList.add('flipped');
+  G.flipFlipped.push({id, val, type});
+  if (G.flipFlipped.length === 2) {
+    const [a, b] = G.flipFlipped;
+    G.flipFlipped = [];
+    const r = ROOMS[G.room];
+    const match = r.pairs.find(p => (p.a===a.val && p.b===b.val) || (p.a===b.val && p.b===a.val));
+    if (match) {
+      document.getElementById('fc-'+a.id).classList.add('matched');
+      document.getElementById('fc-'+b.id).classList.add('matched');
+      G.flipMatched++;
+      if (G.flipMatched === r.pairs.length) success(r.explanation);
+    } else {
+      setTimeout(() => {
+        document.getElementById('fc-'+a.id)?.classList.remove('flipped');
+        document.getElementById('fc-'+b.id)?.classList.remove('flipped');
+      }, 900);
+      penalty('❌ Kein Match — nochmal versuchen!');
+    }
+  }
+}
+
+/* ── WIRE ── */
+function buildWire(r, area) {
+  G.wireSelected = null; G.wireConnections = [];
+  const lefts = r.pairs.map(p => p.left);
+  const rights = [...r.pairs.map(p => p.right)].sort(() => Math.random()-0.5);
+  const colors = ['#00d4ff','#ff4d00','#00ff9d','#ffd700','#ff2244'];
+  area.innerHTML = `<p style="font-size:0.88rem;color:var(--dim);margin-bottom:10px;">Klickt auf einen Begriff links, dann die passende Definition rechts:</p>
+  <div class="wire-area" id="wire-area">
+    <svg class="wire-svg" id="wire-svg" viewBox="0 0 400 200"></svg>
+    <div class="wire-label-l">
+      ${lefts.map((l, i) => `<div class="wire-node">
+        <div class="node-dot" id="nl-${i}" onclick="wireSelectLeft(${i})" data-idx="${i}"></div>
+        <span style="color:${colors[i]};font-size:0.8rem;">${l}</span>
+      </div>`).join('')}
+    </div>
+    <div class="wire-label-r">
+      ${rights.map((r2, i) => `<div class="wire-node" style="flex-direction:row-reverse">
+        <div class="node-dot" id="nr-${i}" onclick="wireSelectRight(${i},'${r2.replace(/'/g,"\\'")}')"></div>
+        <span style="color:#8aadcc;font-size:0.78rem;text-align:right;max-width:140px;">${r2}</span>
+      </div>`).join('')}
+    </div>
+  </div>
+  <div style="font-size:0.75rem;color:var(--dim);margin-top:6px;" id="wire-status">0 / ${r.pairs.length} verbunden</div>`;
+  window._wireRights = rights;
+  window._wireColors = colors;
+}
+function wireSelectLeft(idx) {
+  if (G.done) return;
+  document.querySelectorAll('.node-dot').forEach(d => d.classList.remove('active'));
+  document.getElementById('nl-'+idx).classList.add('active');
+  G.wireSelected = idx;
+}
+function wireSelectRight(idx, val) {
+  if (G.done || G.wireSelected === null) return;
+  const r = ROOMS[G.room];
+  const leftVal = r.pairs[G.wireSelected].left;
+  const correctRight = r.pairs[G.wireSelected].right;
+  const color = window._wireColors[G.wireSelected];
+  if (val === correctRight) {
+    document.getElementById('nl-'+G.wireSelected).classList.remove('active');
+    document.getElementById('nl-'+G.wireSelected).classList.add('connected');
+    document.getElementById('nr-'+idx).classList.add('connected');
+    G.wireConnections.push({l:G.wireSelected, r:idx});
+    drawWire(G.wireSelected, idx, color);
+    G.wireSelected = null;
+    document.getElementById('wire-status').textContent = G.wireConnections.length + ' / ' + r.pairs.length + ' verbunden';
+    if (G.wireConnections.length === r.pairs.length) success(r.explanation);
+  } else {
+    document.getElementById('nr-'+idx).style.boxShadow = '0 0 10px var(--danger)';
+    setTimeout(() => document.getElementById('nr-'+idx).style.boxShadow = '', 600);
+    penalty('❌ Falsche Verbindung! ' + leftVal + ' gehört nicht zu dieser Definition.');
+  }
+}
+function drawWire(lIdx, rIdx, color) {
+  const svg = document.getElementById('wire-svg');
+  const lDot = document.getElementById('nl-'+lIdx);
+  const rDot = document.getElementById('nr-'+rIdx);
+  if (!lDot || !rDot) return;
+  const area = document.getElementById('wire-area');
+  const ar = area.getBoundingClientRect();
+  const lr = lDot.getBoundingClientRect();
+  const rr = rDot.getBoundingClientRect();
+  const x1 = lr.right - ar.left + 6;
+  const y1 = lr.top - ar.top + 7;
+  const x2 = rr.left - ar.left - 6;
+  const y2 = rr.top - ar.top + 7;
+  const mx = (x1+x2)/2;
+  const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+  path.setAttribute('d', `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`);
+  path.setAttribute('class','wire-path');
+  path.setAttribute('stroke', color);
+  svg.appendChild(path);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FEEDBACK HELPERS
+// ═══════════════════════════════════════════════════════════════
+function showFb(cls, msg) {
+  const fb = document.getElementById('feedback');
+  fb.className = cls; fb.textContent = msg;
+}
+function success(msg) {
+  G.done = true;
+  const r = ROOMS[G.room];
+  const bonus = Math.floor(G.timerSec / 12);
+  G.pts += 100 + bonus;
+  updateStats();
+  addIntel(r.intel);
+  showFb('ok', '✅ ' + msg);
+  document.getElementById('continue-btn').classList.add('show');
+}
+function penalty(msg) {
+  G.errs++;
+  updateStats();
+  showFb('err', msg);
+}
+function updateStats() {
+  document.getElementById('pts').textContent = G.pts;
+  document.getElementById('errs').textContent = G.errs;
+  syncToLeaderboard();
+}
+function addIntel(text) {
+  G.intel.push(text);
+  const el = document.getElementById('log-entries');
+  el.innerHTML = G.intel.map(t => `<div class="log-entry">${t}</div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════
+function nextRoom() {
+  G.room++;
+  syncToLeaderboard();
+  if (G.room >= ROOMS.length) { clearInterval(G.timerInt); clearInterval(G.syncInt); endGame(true); }
+  else renderRoom();
+}
+
+function endGame(win) {
+  G.done = win;
+  clearInterval(G.syncInt);
+  syncToLeaderboard();
+  const el = document.getElementById('end-screen');
+  el.classList.add('show');
+  document.getElementById('end-title').textContent = win ? '🎉 MISSION ERFÜLLT!' : '⏰ ZEIT ABGELAUFEN';
+  document.getElementById('end-title').className = win ? 'win' : 'lose';
+  document.getElementById('end-msg').textContent = win
+    ? `Alle 20 Missionen abgeschlossen! Ihr habt das globale Luftfracht-Netzwerk durch Russland-Krise, Iran-Konflikt und Vulkanasche gerettet.`
+    : `${G.room} von 20 Missionen geschafft. Das Netzwerk konnte nicht vollständig stabilisiert werden.`;
+  document.getElementById('end-score').textContent = `Punkte: ${G.pts} | Fehler: ${G.errs}`;
+  document.getElementById('end-summary').innerHTML = `
+    <strong>📚 Das nehmt ihr mit:</strong><br><br>
+    • <strong>Block 1:</strong> Drehkreuz-System — Hong Kong, Memphis, Dubai führen das Ranking an<br>
+    • <strong>Block 2:</strong> Luftfrachtbrief, Gefahrgutdeklaration, Ladeliste — Verwaltung ist das Rückgrat<br>
+    • <strong>Block 3:</strong> 1% Gewicht, 35% Wert — Luftfracht ist wirtschaftlich systemkritisch<br>
+    • <strong>Block 4:</strong> Belly-Cargo, 100k€/h Stillstand, Shein 2–3 Mio. Pakete/Tag, SAF bis 80% CO₂<br>
+    • <strong>Finale-Rechnung:</strong> Dreifach-Krise kostet ~16,1 Mio. € pro Monat
+  `;
+}
+</script>
+</body>
+</html>
